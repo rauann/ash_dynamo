@@ -1,0 +1,16 @@
+services:
+  ash-dynamo-local-test:
+    image: amazon/dynamodb-local:2.5.4
+    container_name: ash-dynamo-local-test
+    command: "-jar DynamoDBLocal.jar -sharedDb -inMemory"
+    ports:
+      - "8099:8000"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          '[ "$(curl -s -o /dev/null -I -w ''%{http_code}'' http://localhost:8000)" == "400" ]',
+        ]
+      timeout: 250ms
+      interval: 250ms
+      retries: 30
