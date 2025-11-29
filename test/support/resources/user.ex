@@ -6,19 +6,22 @@ defmodule AshDynamo.Test.User do
   dynamodb do
     table "users"
     partition_key(:email)
+    sort_key(:inserted_at)
   end
 
   actions do
     defaults [:read]
 
-    read :list_users do
-      description "List all users from DynamoDB"
+    create :create do
+      primary? true
+      accept [:email, :status, :phone, :inserted_at]
     end
   end
 
   attributes do
     attribute :email, :string, allow_nil?: false, primary_key?: true
-    attribute :created_at, :utc_datetime
     attribute :status, :string, allow_nil?: false
+    attribute :phone, :string
+    attribute :inserted_at, :string, allow_nil?: false
   end
 end

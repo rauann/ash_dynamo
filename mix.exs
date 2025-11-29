@@ -9,6 +9,7 @@ defmodule AshDynamo.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
+      cli: cli(),
       consolidate_protocols: Mix.env() != :dev
     ]
   end
@@ -29,7 +30,14 @@ defmodule AshDynamo.MixProject do
       {:ash, "~> 3.0"},
       {:ex_aws_dynamo, "~> 4.2"},
       {:hackney, "~> 1.25"},
+      {:mix_test_watch, "~> 1.4", only: [:dev, :test], runtime: false},
       {:sourceror, "~> 1.8", only: [:dev, :test]}
+    ]
+  end
+
+  defp cli do
+    [
+      "test.watch": :test
     ]
   end
 end

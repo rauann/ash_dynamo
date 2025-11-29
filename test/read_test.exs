@@ -1,5 +1,5 @@
 defmodule AshDynamo.Test.ReadTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case
 
   alias AshDynamo.Test.User
 
@@ -14,7 +14,8 @@ defmodule AshDynamo.Test.ReadTest do
   test "reads a resource" do
     attrs = %{
       email: "john.doe@example.com",
-      created_at: DateTime.to_iso8601(DateTime.utc_now()),
+      inserted_at: DateTime.to_iso8601(DateTime.utc_now()),
+      phone: "1234567890",
       status: "active"
     }
 
@@ -22,10 +23,11 @@ defmodule AshDynamo.Test.ReadTest do
     |> ExAws.Dynamo.put_item(attrs)
     |> ExAws.request!()
 
-    [resource] = Ash.read!(User)
+    {:ok, [resource]} = Ash.read(User)
 
     assert resource.email == attrs.email
+    assert resource.inserted_at == attrs.inserted_at
+    assert resource.phone == attrs.phone
     assert resource.status == attrs.status
-    assert resource.created_at == attrs.created_at
   end
 end

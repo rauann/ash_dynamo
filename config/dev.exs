@@ -11,3 +11,5 @@ config :ex_aws, :dynamodb,
   host: "localhost",
   port: 8088,
   region: "eu-west-1"
+
+config :mix_test_watch, clear: true

@@ -19,7 +19,7 @@ defmodule AshDynamo.DataLayer do
       dynamodb do
         table "users"
         partition_key :email
-        sort_key :created_at
+        sort_key :inserted_at
       end
       """
     ],
@@ -64,6 +64,7 @@ defmodule AshDynamo.DataLayer do
   # --- Capabilities --------------------------------------------------------
   @impl true
   def can?(_, :read), do: true
+  def can?(_, :create), do: true
   def can?(_, _), do: false
 
   # --- Query shaping ------------------------------------------------------
@@ -81,6 +82,65 @@ defmodule AshDynamo.DataLayer do
     |> ExAws.request()
     |> case do
       {:ok, resp} -> {:ok, ExAws.Dynamo.decode_item(resp, as: resource)}
+      {:error, error} -> {:error, error}
+    end
+  end
+
+  @impl true
+  def create(resource, changeset) do
+    with {:ok, schema} <- Ash.Changeset.apply_attributes(changeset) do
+      update_item(resource, changeset, schema)
+    end
+  end
+
+  defp update_item(resource, changeset, schema) do
+    attrs =
+      schema
+      |> Map.from_struct()
+      |> Map.take(Map.keys(changeset.attributes))
+
+    pk = resource |> Info.partition_key() |> to_string()
+    sk = resource |> Info.sort_key() |> then(&if &1, do: to_string(&1))
+
+    key =
+      %{"#{pk}" => attrs[:"#{pk}"]}
+      |> then(fn k -> if sk, do: Map.put(k, sk, attrs[:"#{sk}"]), else: k end)
+
+    # Build SET expr for non-key fields
+    non_keys =
+      [pk, sk]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.map(&String.to_atom/1)
+      |> then(&Map.drop(attrs, &1))
+
+    {set_expr, names, values} =
+      Enum.with_index(non_keys, 1)
+      |> Enum.reduce({"", %{}, %{}}, fn {{k, v}, i}, {expr, n, val} ->
+        name = "#k#{i}"
+        value = "v#{i}"
+        piece = "#{name} = :#{value}"
+
+        {
+          if(expr == "", do: "SET " <> piece, else: expr <> ", " <> piece),
+          Map.put(n, name, to_string(k)),
+          Map.put(val, value, v)
+        }
+      end)
+
+    # Use return_values: "ALL_NEW" to get the final state back for building the resource struct
+    opts = [
+      update_expression: set_expr,
+      expression_attribute_names: names,
+      expression_attribute_values: values,
+      return_values: "ALL_NEW"
+    ]
+
+    resource
+    |> Info.table()
+    |> ExAws.Dynamo.update_item(key, opts)
+    |> ExAws.request()
+    |> case do
+      {:ok, %{"Attributes" => attrs}} -> {:ok, ExAws.Dynamo.decode_item(attrs, as: resource)}
       {:error, error} -> {:error, error}
     end
   end
