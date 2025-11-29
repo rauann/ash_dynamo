@@ -1,6 +1,6 @@
-defmodule AshDynamodb do
+defmodule AshDynamo do
   @moduledoc """
-  Documentation for `AshDynamodb`.
+  Documentation for `AshDynamo`.
   """
 
   @doc """
@@ -8,7 +8,7 @@ defmodule AshDynamodb do
 
   ## Examples
 
-      iex> AshDynamodb.hello()
+      iex> AshDynamo.hello()
       :world
 
   """

@@ -1,13 +1,14 @@
-defmodule AshDynamodb.MixProject do
+defmodule AshDynamo.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :ash_dynamodb,
+      app: :ash_dynamo,
       version: "0.1.0",
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      consolidate_protocols: Mix.env() != :dev
     ]
   end
 
