@@ -65,6 +65,7 @@ defmodule AshDynamo.DataLayer do
   @impl true
   def can?(_, :read), do: true
   def can?(_, :create), do: true
+  def can?(_, :update), do: true
   def can?(_, _), do: false
 
   # --- Query shaping ------------------------------------------------------
@@ -89,11 +90,18 @@ defmodule AshDynamo.DataLayer do
   @impl true
   def create(resource, changeset) do
     with {:ok, schema} <- Ash.Changeset.apply_attributes(changeset) do
-      update_item(resource, changeset, schema)
+      update_item(resource, changeset, schema, :upsert)
     end
   end
 
-  defp update_item(resource, changeset, schema) do
+  @impl true
+  def update(resource, changeset) do
+    with {:ok, schema} <- Ash.Changeset.apply_attributes(changeset) do
+      update_item(resource, changeset, schema, :update)
+    end
+  end
+
+  defp update_item(resource, changeset, schema, mode) do
     attrs =
       schema
       |> Map.from_struct()
@@ -101,10 +109,12 @@ defmodule AshDynamo.DataLayer do
 
     pk = resource |> Info.partition_key() |> to_string()
     sk = resource |> Info.sort_key() |> then(&if &1, do: to_string(&1))
+    pk_atom = String.to_atom(pk)
+    sk_atom = sk && String.to_atom(sk)
 
     key =
-      %{"#{pk}" => attrs[:"#{pk}"]}
-      |> then(fn k -> if sk, do: Map.put(k, sk, attrs[:"#{sk}"]), else: k end)
+      %{"#{pk}" => Map.get(schema, pk_atom)}
+      |> then(fn k -> if sk, do: Map.put(k, sk, Map.get(schema, sk_atom)), else: k end)
 
     # Build SET expr for non-key fields
     non_keys =
@@ -127,13 +137,25 @@ defmodule AshDynamo.DataLayer do
         }
       end)
 
+    # UpdateItem in Dynamo is an upsert by default. Calling it with a key that doesn’t exist,
+    # it will create the item. The attribute_exists(#pk) condition is only applied in :update mode.
+    # to force “update only”: it fails with a conditional check error if the item isn’t there.
+    # In :upsert mode we skip the condition so both create and update are allowed.
+    {condition_expression, names} =
+      case mode do
+        :update -> {"attribute_exists(#pk)", Map.put(names, "#pk", pk)}
+        :upsert -> {nil, names}
+      end
+
     # Use return_values: "ALL_NEW" to get the final state back for building the resource struct
-    opts = [
-      update_expression: set_expr,
-      expression_attribute_names: names,
-      expression_attribute_values: values,
-      return_values: "ALL_NEW"
-    ]
+    opts =
+      [
+        update_expression: set_expr,
+        expression_attribute_names: names,
+        expression_attribute_values: values,
+        return_values: "ALL_NEW"
+      ]
+      |> maybe_put(:condition_expression, condition_expression)
 
     resource
     |> Info.table()
@@ -144,4 +166,7 @@ defmodule AshDynamo.DataLayer do
       {:error, error} -> {:error, error}
     end
   end
+
+  defp maybe_put(opts, _key, nil), do: opts
+  defp maybe_put(opts, key, value), do: Keyword.put(opts, key, value)
 end

@@ -19,7 +19,11 @@ defmodule AshDynamo.Test.CreateTest do
       status: "active"
     }
 
-    assert {:ok, user} = Ash.create(User, attrs)
+    {:ok, user} =
+      User
+      |> Ash.Changeset.for_create(:create, attrs)
+      |> Ash.create()
+
     assert user.email == attrs.email
     assert user.inserted_at == attrs.inserted_at
     assert user.phone == attrs.phone

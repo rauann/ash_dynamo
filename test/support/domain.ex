@@ -3,5 +3,6 @@ defmodule AshDynamo.Test.Domain do
 
   resources do
     resource AshDynamo.Test.User
+    resource AshDynamo.Test.UserSortKey
   end
 end
