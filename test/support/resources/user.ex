@@ -45,18 +45,17 @@ defmodule AshDynamo.Test.UserSortKey do
 
     create :create do
       primary? true
-      accept [:email, :status, :phone, :inserted_at]
+      accept [:email, :status, :inserted_at]
     end
 
     update :update do
-      accept [:status, :phone]
+      accept [:status]
     end
   end
 
   attributes do
     attribute :email, :string, allow_nil?: false, primary_key?: true
     attribute :status, :string, allow_nil?: false
-    attribute :phone, :string
     attribute :inserted_at, :string, allow_nil?: false
   end
 end

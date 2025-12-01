@@ -30,8 +30,8 @@ defmodule AshDynamo.DataLayer do
       ],
       partition_key: [
         type: :atom,
-        default: nil,
-        doc: "Optional partition (hash) key attribute name."
+        required: true,
+        doc: "Required partition (hash) key attribute name."
       ],
       sort_key: [
         type: :atom,
@@ -90,7 +90,7 @@ defmodule AshDynamo.DataLayer do
   @impl true
   def create(resource, changeset) do
     with {:ok, schema} <- Ash.Changeset.apply_attributes(changeset) do
-      update_item(resource, changeset, schema, :upsert)
+      insert_item(resource, changeset, schema)
     end
   end
 
@@ -102,13 +102,9 @@ defmodule AshDynamo.DataLayer do
   end
 
   defp update_item(resource, changeset, schema, mode) do
-    attrs =
-      schema
-      |> Map.from_struct()
-      |> Map.take(Map.keys(changeset.attributes))
-
-    pk = resource |> Info.partition_key() |> to_string()
-    sk = resource |> Info.sort_key() |> then(&if &1, do: to_string(&1))
+    attrs = prepare_attrs(schema, Map.keys(changeset.attributes))
+    pk = get_pk(resource)
+    sk = get_sk(resource)
     pk_atom = String.to_atom(pk)
     sk_atom = sk && String.to_atom(sk)
 
@@ -166,6 +162,49 @@ defmodule AshDynamo.DataLayer do
       {:error, error} -> {:error, error}
     end
   end
+
+  defp insert_item(resource, changeset, schema) do
+    attrs = prepare_attrs(schema, Map.keys(changeset.attributes))
+    pk = get_pk(resource)
+    sk = get_sk(resource)
+
+    item =
+      attrs
+      |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+      |> Map.new(fn {k, v} -> {to_string(k), v} end)
+
+    {condition_expression, names} =
+      case sk do
+        nil ->
+          {"attribute_not_exists(#pk)", %{"#pk" => pk}}
+
+        sk ->
+          {"attribute_not_exists(#pk) AND attribute_not_exists(#sk)", %{"#pk" => pk, "#sk" => sk}}
+      end
+
+    opts = [
+      condition_expression: condition_expression,
+      expression_attribute_names: names
+    ]
+
+    resource
+    |> Info.table()
+    |> ExAws.Dynamo.put_item(item, opts)
+    |> ExAws.request()
+    |> case do
+      {:ok, _resp} -> {:ok, struct(resource, attrs)}
+      {:error, error} -> {:error, error}
+    end
+  end
+
+  defp prepare_attrs(schema, allowed_keys) do
+    schema
+    |> Map.from_struct()
+    |> Map.take(allowed_keys)
+  end
+
+  defp get_pk(resource), do: resource |> Info.partition_key() |> to_string()
+  defp get_sk(resource), do: resource |> Info.sort_key() |> then(&if &1, do: to_string(&1))
 
   defp maybe_put(opts, _key, nil), do: opts
   defp maybe_put(opts, key, value), do: Keyword.put(opts, key, value)
