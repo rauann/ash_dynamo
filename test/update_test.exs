@@ -24,7 +24,7 @@ defmodule AshDynamo.Test.UpdateTest do
     assert updated.status == "inactive"
   end
 
-  test "when schema has partition key and sort key, updates the resource" do
+  test "when schema has sort key, updates the resource" do
     post1 = generate(post_sort_key())
     post2 = generate(post_sort_key(email: post1.email))
 

@@ -66,6 +66,7 @@ defmodule AshDynamo.DataLayer do
   def can?(_, :read), do: true
   def can?(_, :create), do: true
   def can?(_, :update), do: true
+  def can?(_, :destroy), do: true
   def can?(_, _), do: false
 
   # --- Query shaping ------------------------------------------------------
@@ -98,6 +99,40 @@ defmodule AshDynamo.DataLayer do
   def update(resource, changeset) do
     with {:ok, schema} <- Ash.Changeset.apply_attributes(changeset) do
       update_item(resource, changeset, schema, :update)
+    end
+  end
+
+  @impl true
+  def destroy(resource, changeset) do
+    with {:ok, schema} <- Ash.Changeset.apply_attributes(changeset) do
+      pk = get_pk(resource)
+      sk = get_sk(resource)
+      pk_atom = String.to_atom(pk)
+      sk_atom = sk && String.to_atom(sk)
+
+      key =
+        %{"#{pk}" => Map.get(schema, pk_atom)}
+        |> then(fn k -> if sk, do: Map.put(k, sk, Map.get(schema, sk_atom)), else: k end)
+
+      {condition_expression, names} =
+        case sk do
+          nil -> {"attribute_exists(#pk)", %{"#pk" => pk}}
+          sk -> {"attribute_exists(#pk) AND attribute_exists(#sk)", %{"#pk" => pk, "#sk" => sk}}
+        end
+
+      opts = [
+        condition_expression: condition_expression,
+        expression_attribute_names: names
+      ]
+
+      resource
+      |> Info.table()
+      |> ExAws.Dynamo.delete_item(key, opts)
+      |> ExAws.request()
+      |> case do
+        {:ok, _resp} -> :ok
+        {:error, error} -> {:error, error}
+      end
     end
   end
 
