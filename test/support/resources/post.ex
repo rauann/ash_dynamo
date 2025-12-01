@@ -1,10 +1,10 @@
-defmodule AshDynamo.Test.User do
+defmodule AshDynamo.Test.Post do
   use Ash.Resource,
     data_layer: AshDynamo.DataLayer,
     domain: AshDynamo.Test.Domain
 
   dynamodb do
-    table "users"
+    table "posts"
     partition_key(:email)
   end
 
@@ -13,29 +13,29 @@ defmodule AshDynamo.Test.User do
 
     create :create do
       primary? true
-      accept [:email, :status, :phone, :inserted_at]
+      accept [:email, :status, :inserted_at, :title]
     end
 
     update :update do
-      accept [:status, :phone]
+      accept [:status]
     end
   end
 
   attributes do
     attribute :email, :string, allow_nil?: false, primary_key?: true
     attribute :status, :string, allow_nil?: false
-    attribute :phone, :string
+    attribute :title, :string
     attribute :inserted_at, :string, allow_nil?: false
   end
 end
 
-defmodule AshDynamo.Test.UserSortKey do
+defmodule AshDynamo.Test.PostSortKey do
   use Ash.Resource,
     data_layer: AshDynamo.DataLayer,
     domain: AshDynamo.Test.Domain
 
   dynamodb do
-    table "users_sort_key"
+    table "posts_sort_key"
     partition_key(:email)
     sort_key(:inserted_at)
   end

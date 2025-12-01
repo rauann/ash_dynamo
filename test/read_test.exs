@@ -1,7 +1,7 @@
 defmodule AshDynamo.Test.ReadTest do
   use ExUnit.Case
 
-  alias AshDynamo.Test.User
+  alias AshDynamo.Test.Post
 
   setup do
     AshDynamo.Test.Migrate.create!()
@@ -15,19 +15,19 @@ defmodule AshDynamo.Test.ReadTest do
     attrs = %{
       email: "john.doe@example.com",
       inserted_at: DateTime.to_iso8601(DateTime.utc_now()),
-      phone: "1234567890",
+      title: "foobar",
       status: "active"
     }
 
-    "users"
+    "posts"
     |> ExAws.Dynamo.put_item(attrs)
     |> ExAws.request!()
 
-    {:ok, [resource]} = Ash.read(User)
+    {:ok, [resource]} = Ash.read(Post)
 
     assert resource.email == attrs.email
     assert resource.inserted_at == attrs.inserted_at
-    assert resource.phone == attrs.phone
+    assert resource.title == attrs.title
     assert resource.status == attrs.status
   end
 end

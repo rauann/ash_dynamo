@@ -2,8 +2,8 @@ defmodule AshDynamo.Test.CreateTest do
   use ExUnit.Case
   import AshDynamo.Test.Generator
 
-  alias AshDynamo.Test.User
-  alias AshDynamo.Test.UserSortKey
+  alias AshDynamo.Test.Post
+  alias AshDynamo.Test.PostSortKey
 
   setup do
     AshDynamo.Test.Migrate.create!()
@@ -17,33 +17,33 @@ defmodule AshDynamo.Test.CreateTest do
     attrs = %{
       email: "john.doe@example.com",
       inserted_at: DateTime.to_iso8601(DateTime.utc_now()),
-      phone: "1234567890",
+      title: "foobar",
       status: "active"
     }
 
     result =
-      User
+      Post
       |> Ash.Changeset.for_create(:create, attrs)
       |> Ash.create()
 
     assert {:ok, user} = result
     assert user.email == attrs.email
     assert user.inserted_at == attrs.inserted_at
-    assert user.phone == attrs.phone
+    assert user.title == attrs.title
     assert user.status == attrs.status
   end
 
   test "when resource exists with same partition key, returns an error" do
-    user = generate(user())
+    post = generate(post())
 
     attrs = %{
-      email: user.email,
+      email: post.email,
       inserted_at: DateTime.to_iso8601(DateTime.utc_now()),
       status: "active"
     }
 
     result =
-      User
+      Post
       |> Ash.Changeset.for_create(:create, attrs)
       |> Ash.create()
 
@@ -52,16 +52,16 @@ defmodule AshDynamo.Test.CreateTest do
   end
 
   test "when resource exists with same partition key and sort key, returns an error" do
-    user = generate(user_sort_key())
+    post = generate(post_sort_key())
 
     attrs = %{
-      email: user.email,
-      inserted_at: user.inserted_at,
+      email: post.email,
+      inserted_at: post.inserted_at,
       status: "active"
     }
 
     result =
-      UserSortKey
+      PostSortKey
       |> Ash.Changeset.for_create(:create, attrs)
       |> Ash.create()
 
