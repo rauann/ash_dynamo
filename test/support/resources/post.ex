@@ -5,7 +5,7 @@ defmodule AshDynamo.Test.Post do
 
   dynamodb do
     table "posts"
-    partition_key(:email)
+    partition_key :email
   end
 
   actions do
@@ -25,7 +25,12 @@ defmodule AshDynamo.Test.Post do
     attribute :email, :string, allow_nil?: false, primary_key?: true
     attribute :status, :string, allow_nil?: false
     attribute :title, :string
-    attribute :inserted_at, :string, allow_nil?: false
+
+    attribute :inserted_at, :string do
+      writable? true
+      default fn -> DateTime.to_iso8601(DateTime.utc_now()) end
+      allow_nil? false
+    end
   end
 end
 
@@ -36,8 +41,8 @@ defmodule AshDynamo.Test.PostSortKey do
 
   dynamodb do
     table "posts_sort_key"
-    partition_key(:email)
-    sort_key(:inserted_at)
+    partition_key :email
+    sort_key :inserted_at
   end
 
   actions do
@@ -56,6 +61,11 @@ defmodule AshDynamo.Test.PostSortKey do
   attributes do
     attribute :email, :string, allow_nil?: false, primary_key?: true
     attribute :status, :string, allow_nil?: false
-    attribute :inserted_at, :string, allow_nil?: false
+
+    attribute :inserted_at, :string do
+      writable? true
+      default fn -> DateTime.to_iso8601(DateTime.utc_now()) end
+      allow_nil? false
+    end
   end
 end

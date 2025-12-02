@@ -1,7 +1,7 @@
 services:
-  ash-dynamo-local-test:
+  ash-dynamo-test-container:
     image: amazon/dynamodb-local:2.5.4
-    container_name: ash-dynamo-local-test
+    container_name: ash-dynamo-test-container
     command: "-jar DynamoDBLocal.jar -sharedDb -inMemory"
     ports:
       - "8099:8000"

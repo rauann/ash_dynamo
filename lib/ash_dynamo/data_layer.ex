@@ -170,7 +170,7 @@ defmodule AshDynamo.DataLayer do
 
     # UpdateItem in Dynamo is an upsert by default. Calling it with a key that doesn’t exist,
     # it will create the item. The attribute_exists(#pk) condition is only applied in :update mode.
-    # to force “update only”: it fails with a conditional check error if the item isn’t there.
+    # To force “update only”: it fails with a conditional check error if the item isn’t there.
     # In :upsert mode we skip the condition so both create and update are allowed.
     {condition_expression, names} =
       case mode do

@@ -12,8 +12,7 @@ defmodule AshDynamo.Test.Generator do
     seed_generator(
       %Post{
         email: sequence(:unique_email, fn i -> "post#{i}@example.com" end),
-        status: "active",
-        inserted_at: inserted_at_sequence()
+        status: "active"
       },
       overrides: opts
     )
@@ -23,18 +22,9 @@ defmodule AshDynamo.Test.Generator do
     seed_generator(
       %PostSortKey{
         email: sequence(:unique_email, fn i -> "post#{i}@example.com" end),
-        status: "active",
-        inserted_at: inserted_at_sequence()
+        status: "active"
       },
       overrides: opts
     )
-  end
-
-  defp inserted_at_sequence do
-    sequence(:inserted_at, fn i ->
-      DateTime.utc_now()
-      |> DateTime.add(i, :minute)
-      |> DateTime.to_iso8601()
-    end)
   end
 end

@@ -16,7 +16,6 @@ defmodule AshDynamo.Test.CreateTest do
   test "creates a resource" do
     attrs = %{
       email: "john.doe@example.com",
-      inserted_at: DateTime.to_iso8601(DateTime.utc_now()),
       title: "foobar",
       status: "active"
     }
@@ -28,7 +27,6 @@ defmodule AshDynamo.Test.CreateTest do
 
     assert {:ok, user} = result
     assert user.email == attrs.email
-    assert user.inserted_at == attrs.inserted_at
     assert user.title == attrs.title
     assert user.status == attrs.status
   end

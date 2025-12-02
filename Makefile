@@ -1,4 +1,6 @@
 ARGS ?= $(filter-out $@,$(MAKECMDGOALS))
+COMPOSE_FILE ?= docker-compose.test.yml
+COMPOSE_SERVICE ?= ash-dynamo-test-container
 
 .PHONY: test test.watch compose FORCE
 
@@ -9,8 +11,7 @@ test.watch: compose
 	@mix test.watch $(ARGS)
 
 compose:
-	@docker compose -f test/support/docker-compose.yml up -d >/dev/null 2>&1 \
-		|| (docker compose -f test/support/docker-compose.yml up -d; exit $$?)
+	@docker compose -f $(COMPOSE_FILE) up -d $(COMPOSE_SERVICE) >/dev/null 2>&1
 
 # Allow patterns like `make test test/my_test.exs` without make treating the
 # file as a real target.
