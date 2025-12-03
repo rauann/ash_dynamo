@@ -18,7 +18,7 @@ end
 
 |        Capability        | Implemented                                                               | Next steps                                                                                                             |
 | :----------------------: | :------------------------------------------------------------------------ | :--------------------------------------------------------------------------------------------------------------------- |
-|          :read           | ✅ Scan-based reads                                                       | key-based `Query`, projection, pagination, count-only select                                                           |
+|          :read           | ✅ Key-based `Query` on partition-key equality + projection; Scan fallback | pagination, count-only select                                                           |
 |         :create          | ✅ `put_item` + `attribute_not_exists` guard                              | optional upsert mode                                                                                                   |
 |         :update          | ✅ `update_item` with exists check, `ALL_NEW`                             | optimistic lock condition, explicit upsert path                                                                        |
 |         :destroy         | ✅ `delete_item` with exists check                                        | optimistic lock condition                                                                                              |
