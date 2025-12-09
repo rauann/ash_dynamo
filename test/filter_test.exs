@@ -44,7 +44,7 @@ defmodule AshDynamo.Test.FilterTest do
       assert result.status == post.status
     end
 
-    test "filters with key partition and sort key fields" do
+    test "filters with key partition and sort key fields with :== operator" do
       generate(post_sort_key(status: "active"))
 
       %PostSortKey{email: email, inserted_at: inserted_at} =
@@ -54,6 +54,102 @@ defmodule AshDynamo.Test.FilterTest do
         PostSortKey
         |> Ash.Query.filter(email == ^email)
         |> Ash.Query.filter(inserted_at == ^inserted_at)
+
+      {:ok, [result]} = Ash.read(query)
+
+      assert result.email == post.email
+      assert result.status == post.status
+    end
+
+    test "filters with key partition and sort key fields with :> operator" do
+      generate(post_sort_key(status: "active"))
+
+      %PostSortKey{email: email, inserted_at: inserted_at} =
+        post = generate(post_sort_key(status: "inactive"))
+
+      {:ok, inserted_at, _} = DateTime.from_iso8601(inserted_at)
+
+      one_day_ago =
+        inserted_at
+        |> DateTime.add(-1, :day)
+        |> DateTime.to_iso8601()
+
+      query =
+        PostSortKey
+        |> Ash.Query.filter(email == ^email)
+        |> Ash.Query.filter(inserted_at > ^one_day_ago)
+
+      {:ok, [result]} = Ash.read(query)
+
+      assert result.email == post.email
+      assert result.status == post.status
+    end
+
+    test "filters with key partition and sort key fields with :>= operator" do
+      generate(post_sort_key(status: "active"))
+
+      %PostSortKey{email: email, inserted_at: inserted_at} =
+        post = generate(post_sort_key(status: "inactive"))
+
+      {:ok, inserted_at, _} = DateTime.from_iso8601(inserted_at)
+
+      one_day_ago =
+        inserted_at
+        |> DateTime.add(-1, :day)
+        |> DateTime.to_iso8601()
+
+      query =
+        PostSortKey
+        |> Ash.Query.filter(email == ^email)
+        |> Ash.Query.filter(inserted_at >= ^one_day_ago)
+
+      {:ok, [result]} = Ash.read(query)
+
+      assert result.email == post.email
+      assert result.status == post.status
+    end
+
+    test "filters with key partition and sort key fields with :< operator" do
+      generate(post_sort_key(status: "active"))
+
+      %PostSortKey{email: email, inserted_at: inserted_at} =
+        post = generate(post_sort_key(status: "inactive"))
+
+      {:ok, inserted_at, _} = DateTime.from_iso8601(inserted_at)
+
+      one_day_after =
+        inserted_at
+        |> DateTime.add(1, :day)
+        |> DateTime.to_iso8601()
+
+      query =
+        PostSortKey
+        |> Ash.Query.filter(email == ^email)
+        |> Ash.Query.filter(inserted_at < ^one_day_after)
+
+      {:ok, [result]} = Ash.read(query)
+
+      assert result.email == post.email
+      assert result.status == post.status
+    end
+
+    test "filters with key partition and sort key fields with :<= operator" do
+      generate(post_sort_key(status: "active"))
+
+      %PostSortKey{email: email, inserted_at: inserted_at} =
+        post = generate(post_sort_key(status: "inactive"))
+
+      {:ok, inserted_at, _} = DateTime.from_iso8601(inserted_at)
+
+      one_day_after =
+        inserted_at
+        |> DateTime.add(1, :day)
+        |> DateTime.to_iso8601()
+
+      query =
+        PostSortKey
+        |> Ash.Query.filter(email == ^email)
+        |> Ash.Query.filter(inserted_at <= ^one_day_after)
 
       {:ok, [result]} = Ash.read(query)
 

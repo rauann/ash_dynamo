@@ -299,6 +299,8 @@ defmodule AshDynamo.DataLayer do
     |> Enum.uniq()
   end
 
+  @query_key_condition_expression_operarators ~w(= < <= > >=)a
+
   # Dynamo Query requires a KeyConditionExpression with a concrete partition-key value.
   # If the filter gives us that (and optionally a sort-key equality), we build Query opts;
   # otherwise we must fall back to Scan because Dynamo won’t accept a Query without a key.
@@ -309,15 +311,19 @@ defmodule AshDynamo.DataLayer do
     pk = Info.partition_key(resource)
     sk = Info.sort_key(resource)
 
-    with {:ok, pk_value} <- fetch_key_value(filter, pk) do
+    with {:ok, {pk_value, _pk_operator}} <- fetch_key_value(filter, pk) do
       names = %{"#pk" => to_string(pk)}
       values = %{"v_pk" => pk_value}
 
       {expr, names, values} =
         case fetch_key_value(filter, sk) do
-          {:ok, sk_value} ->
-            {"#pk = :v_pk AND #sk = :v_sk", Map.put(names, "#sk", to_string(sk)),
-             Map.put(values, "v_sk", sk_value)}
+          {:ok, {sk_value, sk_operator}}
+          when sk_operator in @query_key_condition_expression_operarators ->
+            {
+              "#pk = :v_pk AND #sk #{sk_operator} :v_sk",
+              Map.put(names, "#sk", to_string(sk)),
+              Map.put(values, "v_sk", sk_value)
+            }
 
           _ ->
             {"#pk = :v_pk", names, values}
@@ -386,29 +392,20 @@ defmodule AshDynamo.DataLayer do
 
   defp filter_refs(_), do: []
 
-  # Extract a simple equality value for a given attribute from an Ash filter.
-  # Returns {:ok, value} when the filter contains attr == value (Ash.Filter or Simple);
-  # otherwise :error. Used to decide if we can build a Dynamo KeyCondition on
-  # the partition/sort keys.
-  #
-  # defp fetch_key_value(%Ash.Filter{} = filter, attr) do
-  #   Ash.Filter.fetch_simple_equality_predicate(filter.expression, attr)
-  # end
   defp fetch_key_value(%Ash.Filter.Simple{predicates: predicates}, attr) do
     target = attr_name(attr) |> to_string()
 
-    Enum.find_value(predicates, :error, fn pred ->
-      %{left: left, right: right} = normalize_predicate(pred)
-
+    Enum.find_value(predicates, :error, fn %{left: left, right: right, operator: operator} ->
       cond do
-        match_ref?(left, target) -> {:ok, right}
-        match_ref?(right, target) -> {:ok, left}
+        match_ref?(left, target) -> {:ok, {right, normalize_operator(operator)}}
+        match_ref?(right, target) -> {:ok, {left, normalize_operator(operator)}}
         true -> nil
       end
     end)
   end
 
-  defp normalize_predicate(%{left: _, right: _} = pred), do: pred
+  defp normalize_operator(:==), do: :=
+  defp normalize_operator(operator), do: operator
 
   defp match_ref?(%Ash.Query.Ref{attribute: ref_attr}, target),
     do: attr_name(ref_attr) |> to_string() == target
