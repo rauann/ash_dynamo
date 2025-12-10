@@ -1,3 +1,5 @@
+[![AshDynamo CI](https://github.com/rauann/ash_dynamo/actions/workflows/ash_dynamo_ci.yml/badge.svg)](https://github.com/rauann/ash_dynamo/actions/workflows/ash_dynamo_ci.yml)
+
 # AshDynamo
 
 Ash data layer for DynamoDB backed by [ExAws.Dynamo](https://github.com/ex-aws/ex_aws_dynamo). It provides a `dynamodb` DSL section so an Ash resource can declare its table, partition/sort keys, and actions, and then persist records to Dynamo.
