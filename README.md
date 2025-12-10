@@ -9,7 +9,7 @@ If [available in Hex](https://hex.pm/docs/publish), add `ash_dynamo` to `mix.exs
 ```elixir
 def deps do
   [
-    {:ash_dynamo, "~> 0.1.0"}
+    {:ash_dynamo, "~> 0.2.0"}
   ]
 end
 ```
