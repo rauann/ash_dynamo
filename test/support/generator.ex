@@ -22,6 +22,7 @@ defmodule AshDynamo.Test.Generator do
     seed_generator(
       %PostSortKey{
         email: sequence(:unique_email, fn i -> "post#{i}@example.com" end),
+        likes: sequence(:unique_likes, fn i -> i end),
         status: "active"
       },
       overrides: opts

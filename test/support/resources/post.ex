@@ -50,7 +50,7 @@ defmodule AshDynamo.Test.PostSortKey do
 
     create :create do
       primary? true
-      accept [:email, :status, :inserted_at]
+      accept [:email, :likes, :status, :inserted_at, :title]
     end
 
     update :update do
@@ -60,7 +60,9 @@ defmodule AshDynamo.Test.PostSortKey do
 
   attributes do
     attribute :email, :string, allow_nil?: false, primary_key?: true
+    attribute :likes, :integer
     attribute :status, :string, allow_nil?: false
+    attribute :title, :string
 
     attribute :inserted_at, :string do
       writable? true

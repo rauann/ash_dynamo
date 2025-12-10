@@ -299,46 +299,176 @@ defmodule AshDynamo.DataLayer do
     |> Enum.uniq()
   end
 
-  @query_key_condition_expression_operarators ~w(= < <= > >=)a
+  @key_condition_operators ~w(== < <= > >=)a
+  @to_dynamo_operator %{
+    :== => "=",
+    :!= => "<>",
+    :> => ">",
+    :>= => ">=",
+    :< => "<",
+    :<= => "<="
+  }
 
-  # Dynamo Query requires a KeyConditionExpression with a concrete partition-key value.
-  # If the filter gives us that (and optionally a sort-key equality), we build Query opts;
-  # otherwise we must fall back to Scan because Dynamo won’t accept a Query without a key.
+  # Builds DynamoDB request options from an Ash filter.
+  #
+  # DynamoDB Query requires a KeyConditionExpression with partition key equality.
+  # If the filter doesn't include the partition key, we fall back to Scan.
+  #
+  # Filter predicates are partitioned into three categories:
+  #   1. Partition key (PK) - must be equality (=), goes to KeyConditionExpression
+  #   2. Sort key (SK) - supports =, <, <=, >, >=, goes to KeyConditionExpression
+  #   3. Non-key attributes - go to FilterExpression (server-side filtering)
+  #
+  # Example: Given filter `email == "foo" and inserted_at > "2024-01-01" and status == "active"`
+  #   - KeyConditionExpression: "#pk = :v_pk AND #sk > :v_sk"
+  #   - FilterExpression: "#fa0 = :fv0"
+  #   - expression_attribute_names: %{"#pk" => "email", "#sk" => "inserted_at", "#fa0" => "status"}
+  #   - expression_attribute_values: %{"v_pk" => "foo", "v_sk" => "2024-01-01", "fv0" => "active"}
+  #
   # Returns {:query | :scan, opts} for run_query/2.
   defp request_opts(%Query{filter: nil}, _resource), do: {:scan, []}
 
   defp request_opts(%Query{filter: filter}, resource) do
     pk = Info.partition_key(resource)
     sk = Info.sort_key(resource)
+    key_attrs = [pk, sk] |> Enum.reject(&is_nil/1)
 
-    with {:ok, {pk_value, _pk_operator}} <- fetch_key_value(filter, pk) do
-      names = %{"#pk" => to_string(pk)}
-      values = %{"v_pk" => pk_value}
+    with {:ok, {pk_value, _}} <- fetch_key_value(filter, pk) do
+      # Partition predicates: key vs non-key
+      {_key_preds, filter_preds} = partition_predicates(filter, key_attrs)
 
-      {expr, names, values} =
-        case fetch_key_value(filter, sk) do
-          {:ok, {sk_value, sk_operator}}
-          when sk_operator in @query_key_condition_expression_operarators ->
-            {
-              "#pk = :v_pk AND #sk #{sk_operator} :v_sk",
-              Map.put(names, "#sk", to_string(sk)),
-              Map.put(values, "v_sk", sk_value)
-            }
+      # Build KeyConditionExpression (PK + SK)
+      {key_expr, names, values} = build_key_condition(pk, pk_value, sk, filter)
 
-          _ ->
-            {"#pk = :v_pk", names, values}
-        end
+      # Build FilterExpression (non-key attributes)
+      {filter_expr, names, values} = build_filter_expression(filter_preds, names, values)
 
       {:query,
        [
-         key_condition_expression: expr,
+         key_condition_expression: key_expr,
          expression_attribute_names: names,
          expression_attribute_values: values
-       ]}
+       ]
+       |> maybe_put(:filter_expression, filter_expr)}
     else
       _ -> {:scan, []}
     end
   end
+
+  defp build_key_condition(pk, pk_value, sk, filter) do
+    names = %{"#pk" => to_string(pk)}
+    values = %{"v_pk" => pk_value}
+
+    case fetch_key_value(filter, sk) do
+      {:ok, {sk_value, sk_operator}} when sk_operator in @key_condition_operators ->
+        {
+          "#pk = :v_pk AND #sk #{Map.get(@to_dynamo_operator, sk_operator)} :v_sk",
+          Map.put(names, "#sk", to_string(sk)),
+          Map.put(values, "v_sk", sk_value)
+        }
+
+      _ ->
+        {"#pk = :v_pk", names, values}
+    end
+  end
+
+  defp partition_predicates(%Ash.Filter.Simple{predicates: predicates}, key_attrs) do
+    key_attr_names = Enum.map(key_attrs, &(attr_name(&1) |> to_string()))
+
+    Enum.split_with(predicates, fn
+      %{left: left, right: right} ->
+        Enum.any?(key_attr_names, fn key ->
+          match_ref?(left, key) or match_ref?(right, key)
+        end)
+
+      _other ->
+        false
+    end)
+  end
+
+  defp partition_predicates(_, _), do: {[], []}
+
+  # Builds a DynamoDB FilterExpression from non-key predicates.
+  #
+  # FilterExpression applies server-side filtering AFTER KeyConditionExpression
+  # narrows results. This reduces data transfer but still consumes read capacity
+  # for all scanned items.
+  #
+  # Supported predicate types:
+  #   1. Comparison operators (==, !=, <, <=, >, >=)
+  #      - Ash: %{left: ref, right: value, operator: :==}
+  #      - DynamoDB: "#attr = :val"
+  #
+  #   2. contains() function (string substring or set membership)
+  #      - Ash: %Ash.Query.Function.Contains{arguments: [ref, value]}
+  #      - DynamoDB: "contains(#attr, :val)"
+  #
+  # Unsupported predicates (is_nil, in, or, etc.) are skipped here and handled
+  # by Ash.Filter.Runtime.filter_matches in apply_runtime_filter/2.
+  #
+  # Example: Given predicates [status == "active", contains(title, "foo")]
+  #   - FilterExpression: "#fa0 = :fv0 AND contains(#fa1, :fv1)"
+  #   - names: %{"#fa0" => "status", "#fa1" => "title"}
+  #   - values: %{"fv0" => "active", "fv1" => "foo"}
+  #
+  # Returns {filter_expression | nil, updated_names, updated_values}.
+  defp build_filter_expression([], names, values), do: {nil, names, values}
+
+  defp build_filter_expression(predicates, names, values) do
+    {exprs, names, values} =
+      predicates
+      |> Enum.with_index()
+      |> Enum.reduce({[], names, values}, fn
+        # Handle comparison predicates (==, !=, <, >, etc.)
+        {%{left: left, right: right, operator: operator}, idx}, {exprs, n, v} ->
+          dynamo_operator = Map.get(@to_dynamo_operator, operator)
+
+          if dynamo_operator do
+            {attr, value} = extract_attr_and_value(left, right)
+            attr_placeholder = "#fa#{idx}"
+            value_placeholder = "fv#{idx}"
+            expr = "#{attr_placeholder} #{dynamo_operator} :#{value_placeholder}"
+
+            {
+              [expr | exprs],
+              Map.put(n, attr_placeholder, to_string(attr)),
+              Map.put(v, value_placeholder, value)
+            }
+          else
+            {exprs, n, v}
+          end
+
+        # Handle contains() function
+        {%Ash.Query.Function.Contains{arguments: [ref, value]}, idx}, {exprs, n, v} ->
+          attr = get_attr_name(ref)
+          attr_placeholder = "#fa#{idx}"
+          value_placeholder = "fv#{idx}"
+          expr = "contains(#{attr_placeholder}, :#{value_placeholder})"
+
+          {
+            [expr | exprs],
+            Map.put(n, attr_placeholder, to_string(attr)),
+            Map.put(v, value_placeholder, value)
+          }
+
+        # Skip unsupported - handled by runtime filter
+        {_other, _idx}, acc ->
+          acc
+      end)
+
+    case exprs do
+      [] -> {nil, names, values}
+      _ -> {exprs |> Enum.reverse() |> Enum.join(" AND "), names, values}
+    end
+  end
+
+  defp get_attr_name(%Ash.Query.Ref{attribute: attr}), do: attr_name(attr)
+
+  defp extract_attr_and_value(%Ash.Query.Ref{attribute: attr}, value),
+    do: {attr_name(attr), value}
+
+  defp extract_attr_and_value(value, %Ash.Query.Ref{attribute: attr}),
+    do: {attr_name(attr), value}
 
   defp merge_projection_opts(opts, fields) do
     {projection_expression, projection_names} = build_projection(fields)
@@ -385,7 +515,6 @@ defmodule AshDynamo.DataLayer do
   end
 
   defp filter_refs(nil), do: []
-  defp filter_refs(%Ash.Filter{} = filter), do: Ash.Filter.list_refs(filter.expression)
 
   defp filter_refs(%Ash.Filter.Simple{predicates: predicates}),
     do: Ash.Filter.list_refs(predicates)
@@ -395,17 +524,19 @@ defmodule AshDynamo.DataLayer do
   defp fetch_key_value(%Ash.Filter.Simple{predicates: predicates}, attr) do
     target = attr_name(attr) |> to_string()
 
-    Enum.find_value(predicates, :error, fn %{left: left, right: right, operator: operator} ->
-      cond do
-        match_ref?(left, target) -> {:ok, {right, normalize_operator(operator)}}
-        match_ref?(right, target) -> {:ok, {left, normalize_operator(operator)}}
-        true -> nil
-      end
+    Enum.find_value(predicates, :error, fn
+      %{left: left, right: right, operator: operator} ->
+        cond do
+          match_ref?(left, target) -> {:ok, {right, operator}}
+          match_ref?(right, target) -> {:ok, {left, operator}}
+          true -> nil
+        end
+
+      # Functions like contains(), etc.
+      _other ->
+        nil
     end)
   end
-
-  defp normalize_operator(:==), do: :=
-  defp normalize_operator(operator), do: operator
 
   defp match_ref?(%Ash.Query.Ref{attribute: ref_attr}, target),
     do: attr_name(ref_attr) |> to_string() == target

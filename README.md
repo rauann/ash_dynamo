@@ -14,20 +14,63 @@ def deps do
 end
 ```
 
-## Status
+## Supported Ash Features
 
-|        Capability        | Implemented                                                               | Next steps                                                                                                             |
-| :----------------------: | :------------------------------------------------------------------------ | :--------------------------------------------------------------------------------------------------------------------- |
-|          :read           | ✅ Key-based `Query` on partition-key equality + projection; Scan fallback | pagination, count-only select                                                           |
-|         :create          | ✅ `put_item` + `attribute_not_exists` guard                              | optional upsert mode                                                                                                   |
-|         :update          | ✅ `update_item` with exists check, `ALL_NEW`                             | optimistic lock condition, explicit upsert path                                                                        |
-|         :destroy         | ✅ `delete_item` with exists check                                        | optimistic lock condition                                                                                              |
-|         :filter          | ⏳ not implemented                                                        | map Ash filters to Dynamo Query/Scan; post-filter fallback                                                             |
-|          :sort           | ⏳ not implemented                                                        | sort-key ordering for Query; Scan remains unsorted                                                                     |
-|    :aggregate (count)    | ⏳ not implemented                                                        | `run_aggregate` count: use `Select: :count` on Query; Scan count fallback; normalize result shape                      |
-|           Bulk           | ⏳ not implemented                                                        | `batch_get_item` for reads; `batch_write_item` (25 max) for puts; retry unprocessed with backoff; non-atomic semantics |
-|          Upsert          | ⚠️ disabled by default; create prevents overwrite; update requires exists | explicit upsert mode                                                                                                   |
-| Multitenancy/concurrency | ⏳ not implemented                                                        | tenant-aware table/key selection; optimistic locking conditions                                                        |
+### CRUD Operations
+
+| Capability | Status | Notes                                              |
+| ---------- | ------ | -------------------------------------------------- |
+| `:read`    | ✅     | Query (with PK) or Scan fallback                   |
+| `:create`  | ✅     | PutItem with uniqueness check                      |
+| `:update`  | ✅     | UpdateItem with existence check                    |
+| `:destroy` | ✅     | DeleteItem with existence check                    |
+| `:select`  | ✅     | ProjectionExpression                               |
+| `:filter`  | ✅     | KeyCondition + FilterExpression + Runtime fallback |
+
+### Filter Operators
+
+**KeyConditionExpression (partition key + sort key):**
+
+| Ash Operator | DynamoDB | Where Used        |
+| ------------ | -------- | ----------------- |
+| `==`         | `=`      | PK (required), SK |
+| `<`          | `<`      | SK only           |
+| `<=`         | `<=`     | SK only           |
+| `>`          | `>`      | SK only           |
+| `>=`         | `>=`     | SK only           |
+
+**FilterExpression (non-key attributes, server-side filtering):**
+
+| Ash Operator | DynamoDB   |
+| ------------ | ---------- |
+| `==`         | `=`        |
+| `!=`         | `<>`       |
+| `<`          | `<`        |
+| `<=`         | `<=`       |
+| `>`          | `>`        |
+| `>=`         | `>=`       |
+| `contains`   | `contains` |
+
+**Runtime filter fallback (in-memory filtering):**
+
+| Ash Operator | Status            |
+| ------------ | ----------------- |
+| `in`         | ⏳ Runtime filter |
+| `is_nil`     | ⏳ Runtime filter |
+
+### Not Supported / Not Implemented
+
+| Feature               | Notes                                           |
+| --------------------- | ----------------------------------------------- |
+| `:or`                 | Possible via filter expression. Not implemented |
+| `:upsert`             | Explicit upsert mode. Not implemented           |
+| `:sort`               | Sort by SK. Not implemented                     |
+| `:limit` / `:offset`  | Pagination. Not implemented                     |
+| `:aggregate`          | Possible via `Select: COUNT`. Not implemented   |
+| Bulk operations       | Bulk insert/update/delete. Not implemented      |
+| GSI/LSI query routing | DSL defined. Not implemented                    |
+| Relationships         | DynamoDB has no native joins. Not supported     |
+| Transactions          | DynamoDB TransactWriteItems. Not supported      |
 
 ## Usage
 
