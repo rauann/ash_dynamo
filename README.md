@@ -61,17 +61,20 @@ end
 
 ### Not Supported / Not Implemented
 
-| Feature               | Notes                                       |
-| --------------------- | ------------------------------------------- |
-| `:or`                 | Via filter expression. Not implemented      |
-| `:upsert`             | Explicit upsert mode. Not implemented       |
-| `:sort`               | Sort by SK. Not implemented                 |
-| `:limit` / `:offset`  | Pagination. Not implemented                 |
-| `:aggregate`          | Via `Select: COUNT`. Not implemented        |
-| Bulk operations       | Bulk insert/update/delete. Not implemented  |
-| GSI/LSI query routing | DSL defined. Not implemented                |
-| Relationships         | DynamoDB has no native joins. Not supported |
-| Transactions          | DynamoDB TransactWriteItems. Not supported  |
+| Feature               | Notes                                                                  |
+| --------------------- | ---------------------------------------------------------------------- |
+| `:or`                 | Via filter expression. Not implemented                                 |
+| `:upsert`             | Explicit upsert mode. Not implemented                                  |
+| `:sort`               | Sort by SK. Not implemented                                            |
+| `:limit` / `:offset`  | Pagination vie `LastEvaluatedKey`/`ExclusiveStartKey`. Not implemented |
+| `:aggregate`          | Via `Select: COUNT`. Not implemented                                   |
+| Bulk operations       | Bulk insert/update/delete. Not implemented                             |
+| GSI/LSI query routing | DSL defined. Not implemented                                           |
+| Relationships         | DynamoDB has no native joins. Not supported                            |
+| Transactions          | DynamoDB TransactWriteItems. Not supported                             |
+
+> **Note:** Since pagination is not implemented, queries on large datasets will return only the first 1MB of results
+> (DynamoDB's per-request limit).
 
 ## Usage
 
@@ -154,7 +157,8 @@ config :ex_aws,
 
 config :ex_aws,
   access_key_id: "accesskeyid",
-  secret_access_key: "secretaccesskey"
+  secret_access_key: "secretaccesskey",
+  debug_requests: true
 
 config :ex_aws, :dynamodb,
   scheme: "http://",
