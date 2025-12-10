@@ -57,20 +57,21 @@ end
 | ------------ | ----------------- |
 | `in`         | ⏳ Runtime filter |
 | `is_nil`     | ⏳ Runtime filter |
+| `or`         | ⏳ Runtime filter |
 
 ### Not Supported / Not Implemented
 
-| Feature               | Notes                                           |
-| --------------------- | ----------------------------------------------- |
-| `:or`                 | Possible via filter expression. Not implemented |
-| `:upsert`             | Explicit upsert mode. Not implemented           |
-| `:sort`               | Sort by SK. Not implemented                     |
-| `:limit` / `:offset`  | Pagination. Not implemented                     |
-| `:aggregate`          | Possible via `Select: COUNT`. Not implemented   |
-| Bulk operations       | Bulk insert/update/delete. Not implemented      |
-| GSI/LSI query routing | DSL defined. Not implemented                    |
-| Relationships         | DynamoDB has no native joins. Not supported     |
-| Transactions          | DynamoDB TransactWriteItems. Not supported      |
+| Feature               | Notes                                       |
+| --------------------- | ------------------------------------------- |
+| `:or`                 | Via filter expression. Not implemented      |
+| `:upsert`             | Explicit upsert mode. Not implemented       |
+| `:sort`               | Sort by SK. Not implemented                 |
+| `:limit` / `:offset`  | Pagination. Not implemented                 |
+| `:aggregate`          | Via `Select: COUNT`. Not implemented        |
+| Bulk operations       | Bulk insert/update/delete. Not implemented  |
+| GSI/LSI query routing | DSL defined. Not implemented                |
+| Relationships         | DynamoDB has no native joins. Not supported |
+| Transactions          | DynamoDB TransactWriteItems. Not supported  |
 
 ## Usage
 

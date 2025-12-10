@@ -66,6 +66,19 @@ defmodule AshDynamo.Test.FilterTest do
       assert result.email == post.email
       assert result.status == post.status
     end
+
+    test "filters with 'or' operator" do
+      generate(post(title: "bar", status: "inactive"))
+
+      post = generate(post(title: "foobar", status: "active"))
+
+      query = Ash.Query.filter(Post, title == "foobar" or status == "active")
+
+      {:ok, [result]} = Ash.read(query)
+
+      assert result.email == post.email
+      assert result.status == post.status
+    end
   end
 
   describe "KeyConditionExpression (query)" do

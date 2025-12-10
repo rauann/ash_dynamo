@@ -73,6 +73,7 @@ defmodule AshDynamo.DataLayer do
   def can?(_, :filter), do: true
   def can?(_, :nested_expressions), do: true
   def can?(_, {:filter_expr, _expr}), do: true
+  def can?(_, :boolean_filter), do: true
   def can?(_, _), do: false
 
   # --- Query shaping ------------------------------------------------------
@@ -332,6 +333,11 @@ defmodule AshDynamo.DataLayer do
     pk = Info.partition_key(resource)
     sk = Info.sort_key(resource)
     key_attrs = [pk, sk] |> Enum.reject(&is_nil/1)
+
+    # Convert to simple filter, skipping unsupported expressions (OR, contains).
+    # Skipped expressions that are not implemented on dynamo query (i.e OR, or
+    # contains when scan is used) are handled by runtime filter.
+    filter = Ash.Filter.to_simple_filter(filter, skip_invalid?: true)
 
     with {:ok, {pk_value, _}} <- fetch_key_value(filter, pk) do
       # Partition predicates: key vs non-key
