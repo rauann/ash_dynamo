@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](Https://conventionalcommits.org) for commit guidelines.
 
+## [v0.2.1](https://github.com/rauann/ash_dynamo/compare/v0.2.0...v0.2.1) (2025-12-11)
+
+### Chores
+
+- Add test setup with DynamoDB Local
+- Improve documentation
+
 ## [v0.2.0](https://github.com/rauann/ash_dynamo/compare/v0.1.0...v0.2.0) (2025-12-10)
 
 ### Features

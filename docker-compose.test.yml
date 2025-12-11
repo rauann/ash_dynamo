@@ -1,6 +1,6 @@
 services:
   ash-dynamo-test-container:
-    image: amazon/dynamodb-local:2.5.4
+    image: amazon/dynamodb-local:latest
     container_name: ash-dynamo-test-container
     command: "-jar DynamoDBLocal.jar -sharedDb -inMemory"
     ports:
