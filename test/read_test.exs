@@ -1,15 +1,10 @@
 defmodule AshDynamo.Test.ReadTest do
   use ExUnit.Case
+  import AshDynamo.Test.Setup
 
   alias AshDynamo.Test.Post
 
-  setup do
-    AshDynamo.Test.Migrate.create!()
-
-    on_exit(fn ->
-      AshDynamo.Test.Migrate.drop!()
-    end)
-  end
+  setup :migrate!
 
   test "reads a resource" do
     attrs = %{

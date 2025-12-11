@@ -1,14 +1,9 @@
 defmodule AshDynamo.Test.DestroyTest do
   use ExUnit.Case
   import AshDynamo.Test.Generator
+  import AshDynamo.Test.Setup
 
-  setup do
-    AshDynamo.Test.Migrate.create!()
-
-    on_exit(fn ->
-      AshDynamo.Test.Migrate.drop!()
-    end)
-  end
+  setup :migrate!
 
   test "destroys a resource" do
     post = generate(post())

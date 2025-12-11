@@ -1,19 +1,14 @@
 defmodule AshDynamo.Test.FilterTest do
   use ExUnit.Case
   import AshDynamo.Test.Generator
+  import AshDynamo.Test.Setup
 
   require Ash.Query
 
   alias AshDynamo.Test.Post
   alias AshDynamo.Test.PostSortKey
 
-  setup do
-    AshDynamo.Test.Migrate.create!()
-
-    on_exit(fn ->
-      AshDynamo.Test.Migrate.drop!()
-    end)
-  end
+  setup :migrate!
 
   describe "Runtime filter (scan)" do
     test "filters with non-key fields" do

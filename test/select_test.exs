@@ -1,18 +1,13 @@
 defmodule AshDynamo.Test.SelectTest do
   use ExUnit.Case
   import AshDynamo.Test.Generator
+  import AshDynamo.Test.Setup
 
   require Ash.Query
 
   alias AshDynamo.Test.Post
 
-  setup do
-    AshDynamo.Test.Migrate.create!()
-
-    on_exit(fn ->
-      AshDynamo.Test.Migrate.drop!()
-    end)
-  end
+  setup :migrate!
 
   test "selects only values present in the query (Scan) " do
     %Post{email: email, inserted_at: inserted_at} = generate(post())

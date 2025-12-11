@@ -1,17 +1,12 @@
 defmodule AshDynamo.Test.CreateTest do
   use ExUnit.Case
   import AshDynamo.Test.Generator
+  import AshDynamo.Test.Setup
 
   alias AshDynamo.Test.Post
   alias AshDynamo.Test.PostSortKey
 
-  setup do
-    AshDynamo.Test.Migrate.create!()
-
-    on_exit(fn ->
-      AshDynamo.Test.Migrate.drop!()
-    end)
-  end
+  setup :migrate!
 
   test "creates a resource" do
     attrs = %{
