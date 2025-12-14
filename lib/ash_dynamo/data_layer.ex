@@ -101,21 +101,18 @@ defmodule AshDynamo.DataLayer do
     {mode, opts} = request_opts(query, resource)
     opts = merge_projection_opts(opts, select_fields)
 
-    mode
-    |> case do
-      :query -> ExAws.Dynamo.query(table, opts)
-      :scan -> ExAws.Dynamo.scan(table, opts)
-    end
-    |> ExAws.request()
-    |> case do
-      {:ok, resp} ->
-        with {:ok, items} <- decode_items(resp, resource),
-             {:ok, filtered} <- apply_runtime_filter(items, query) do
-          {:ok, filtered}
-        end
+    result =
+      mode
+      |> case do
+        :query -> ExAws.Dynamo.query(table, opts)
+        :scan -> ExAws.Dynamo.scan(table, opts)
+      end
+      |> ExAws.request()
 
-      {:error, error} ->
-        {:error, error}
+    with {:ok, resp} <- result,
+         {:ok, items} <- decode_items(resp, resource),
+         {:ok, filtered} <- apply_runtime_filter(items, query) do
+      {:ok, filtered}
     end
   end
 
