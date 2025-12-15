@@ -6,13 +6,21 @@
 
 ## Make Commands
 
-The Makefile provides convenient commands that automatically start DynamoDB Local before running tests:
+The Makefile provides convenient commands for development:
 
-| Command           | Description                                                                |
-| ----------------- | -------------------------------------------------------------------------- |
-| `make test`       | Start DynamoDB Local (if not running) and run the test suite               |
-| `make test.watch` | Start DynamoDB Local and run tests in watch mode (re-runs on file changes) |
-| `make compose`    | Start only the DynamoDB Local container                                    |
+| Command             | Description                                                                |
+| ------------------- | -------------------------------------------------------------------------- |
+| `make check`        | Run all checks: quality and coverage                                       |
+| `make quality`      | Run quality checks: format, credo, hex-outdated, hex-audit, unused-deps    |
+| `make coverage`     | Run tests with coverage and trace                                          |
+| `make test`         | Start DynamoDB Local (if not running) and run the test suite               |
+| `make test.watch`   | Start DynamoDB Local and run tests in watch mode (re-runs on file changes) |
+| `make compose`      | Start only the DynamoDB Local container                                    |
+| `make format`       | Check code formatting                                                      |
+| `make credo`        | Run Credo static analysis                                                  |
+| `make hex-outdated` | Check for outdated dependencies                                            |
+| `make hex-audit`    | Audit dependencies for security vulnerabilities                            |
+| `make unused-deps`  | Check for unused dependencies                                              |
 
 ### Running Specific Tests
 

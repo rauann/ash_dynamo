@@ -3,6 +3,9 @@ defmodule AshDynamo.Test.UpdateTest do
   import AshDynamo.Test.Generator
   import AshDynamo.Test.Setup
 
+  alias AshDynamo.Test.PostSortKey
+  require Ash.Query
+
   setup :migrate!
 
   test "updates a resource" do
@@ -21,7 +24,9 @@ defmodule AshDynamo.Test.UpdateTest do
 
   test "when schema has sort key, updates the resource" do
     post1 = generate(post_sort_key())
-    post2 = generate(post_sort_key(email: post1.email))
+
+    %PostSortKey{email: email, inserted_at: inserted_at} =
+      post2 = generate(post_sort_key(email: post1.email))
 
     assert post1.email == post2.email
     refute post1.inserted_at == post2.inserted_at
@@ -33,7 +38,20 @@ defmodule AshDynamo.Test.UpdateTest do
 
     assert {:ok, updated} = result
     assert updated.status == "inactive"
-    # TODO: read user1 again
+
+    query =
+      PostSortKey
+      |> Ash.Query.filter(email == ^email)
+      |> Ash.Query.filter(inserted_at == ^inserted_at)
+
+    assert {
+             :ok,
+             %PostSortKey{
+               email: ^email,
+               inserted_at: ^inserted_at,
+               status: "inactive"
+             }
+           } = Ash.load(updated, query)
   end
 
   test "when resource does not exist, returns an error" do

@@ -1,4 +1,6 @@
 defmodule AshDynamo.Test.Generator do
+  @moduledoc false
+
   use Ash.Generator
 
   alias AshDynamo.Test.Post

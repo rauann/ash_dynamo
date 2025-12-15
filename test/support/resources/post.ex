@@ -1,4 +1,6 @@
 defmodule AshDynamo.Test.Post do
+  @moduledoc false
+
   use Ash.Resource,
     data_layer: AshDynamo.DataLayer,
     domain: AshDynamo.Test.Domain
@@ -35,6 +37,8 @@ defmodule AshDynamo.Test.Post do
 end
 
 defmodule AshDynamo.Test.PostSortKey do
+  @moduledoc false
+
   use Ash.Resource,
     data_layer: AshDynamo.DataLayer,
     domain: AshDynamo.Test.Domain

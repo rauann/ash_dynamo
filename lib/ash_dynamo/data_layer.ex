@@ -110,9 +110,8 @@ defmodule AshDynamo.DataLayer do
       |> ExAws.request()
 
     with {:ok, resp} <- result,
-         {:ok, items} <- decode_items(resp, resource),
-         {:ok, filtered} <- apply_runtime_filter(items, query) do
-      {:ok, filtered}
+         {:ok, items} <- decode_items(resp, resource) do
+      apply_runtime_filter(items, query)
     end
   end
 
@@ -336,25 +335,27 @@ defmodule AshDynamo.DataLayer do
     # contains when scan is used) are handled by runtime filter.
     filter = Ash.Filter.to_simple_filter(filter, skip_invalid?: true)
 
-    with {:ok, {pk_value, _}} <- fetch_key_value(filter, pk) do
-      # Partition predicates: key vs non-key
-      {_key_preds, filter_preds} = partition_predicates(filter, key_attrs)
+    case fetch_key_value(filter, pk) do
+      {:ok, {pk_value, _}} ->
+        # Partition predicates: key vs non-key
+        {_key_preds, filter_preds} = partition_predicates(filter, key_attrs)
 
-      # Build KeyConditionExpression (PK + SK)
-      {key_expr, names, values} = build_key_condition(pk, pk_value, sk, filter)
+        # Build KeyConditionExpression (PK + SK)
+        {key_expr, names, values} = build_key_condition(pk, pk_value, sk, filter)
 
-      # Build FilterExpression (non-key attributes)
-      {filter_expr, names, values} = build_filter_expression(filter_preds, names, values)
+        # Build FilterExpression (non-key attributes)
+        {filter_expr, names, values} = build_filter_expression(filter_preds, names, values)
 
-      {:query,
-       [
-         key_condition_expression: key_expr,
-         expression_attribute_names: names,
-         expression_attribute_values: values
-       ]
-       |> maybe_put(:filter_expression, filter_expr)}
-    else
-      _ -> {:scan, []}
+        {:query,
+         [
+           key_condition_expression: key_expr,
+           expression_attribute_names: names,
+           expression_attribute_values: values
+         ]
+         |> maybe_put(:filter_expression, filter_expr)}
+
+      :error ->
+        {:scan, []}
     end
   end
 

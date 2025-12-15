@@ -56,37 +56,23 @@ defmodule AshDynamo.Test.Migrate do
 
   defp resources, do: Ash.Domain.Info.resources(AshDynamo.Test.Domain)
 
+  @dynamo_types %{
+    string: :string,
+    uuid: :string,
+    integer: :number,
+    float: :number,
+    decimal: :number,
+    utc_datetime: :string,
+    naive_datetime: :string,
+    date: :string,
+    binary: :binary
+  }
+
   defp dynamo_type(type) do
-    case Ash.Type.storage_type(type) do
-      :string ->
-        :string
+    storage_type = Ash.Type.storage_type(type)
 
-      :uuid ->
-        :string
-
-      :integer ->
-        :number
-
-      :float ->
-        :number
-
-      :decimal ->
-        :number
-
-      :utc_datetime ->
-        :string
-
-      :naive_datetime ->
-        :string
-
-      :date ->
-        :string
-
-      :binary ->
-        :binary
-
-      other ->
-        raise "Unsupported partition/sort key type #{inspect(type)} (storage: #{inspect(other)})"
-    end
+    Map.get_lazy(@dynamo_types, storage_type, fn ->
+      raise "Unsupported partition/sort key type #{inspect(type)} (storage: #{inspect(storage_type)})"
+    end)
   end
 end

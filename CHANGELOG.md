@@ -9,6 +9,9 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 - Add test setup with DynamoDB Local
 - Improve documentation
+- Add credo
+- Add CI workflow
+- Prepare to publish release
 
 ## [v0.2.0](https://github.com/rauann/ash_dynamo/compare/v0.1.0...v0.2.0) (2025-12-10)
 

@@ -3,9 +3,7 @@ defmodule AshDynamo.MixProject do
 
   @version "0.2.1"
 
-  @moduledoc """
-  DynamoDB data layer for Ash resources.
-  """
+  @moduledoc "DynamoDB data layer for Ash resources."
 
   def project do
     [
@@ -18,7 +16,9 @@ defmodule AshDynamo.MixProject do
       deps: deps(),
       docs: docs(),
       cli: cli(),
-      consolidate_protocols: Mix.env() != :dev
+      consolidate_protocols: Mix.env() != :dev,
+      package: package(),
+      test_coverage: test_coverage()
     ]
   end
 
@@ -45,6 +45,18 @@ defmodule AshDynamo.MixProject do
     ]
   end
 
+  def package do
+    [
+      description: @moduledoc,
+      maintainers: ["Rauan <rauann.assis@gmail.com>"],
+      licenses: ["MIT"],
+      links: %{
+        GitHub: "https://github.com/rauann/ash_dynamo",
+        Changelog: "https://hexdocs.pm/ash_dynamo/changelog.html"
+      }
+    ]
+  end
+
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
@@ -59,6 +71,7 @@ defmodule AshDynamo.MixProject do
   defp deps do
     [
       {:ash, "~> 3.11"},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:ex_aws_dynamo, "~> 4.2"},
       {:ex_doc, "~> 0.39", only: :dev, runtime: false, warn_if_outdated: true},
       {:hackney, "~> 1.25"},
@@ -70,6 +83,18 @@ defmodule AshDynamo.MixProject do
   defp cli do
     [
       "test.watch": :test
+    ]
+  end
+
+  defp test_coverage do
+    # quokka:sort
+    [
+      ignore_modules: [
+        AshDynamo.DataLayer.Dynamodb.Options,
+        ~r/Inspect/,
+        ~r/\.Test\./
+      ],
+      summary: [threshold: 85]
     ]
   end
 end
