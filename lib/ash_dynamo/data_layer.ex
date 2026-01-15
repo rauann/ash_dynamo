@@ -59,7 +59,8 @@ defmodule AshDynamo.DataLayer do
       :resource,
       :domain,
       :select,
-      :filter
+      :filter,
+      :sort
     ]
   end
 
@@ -74,6 +75,8 @@ defmodule AshDynamo.DataLayer do
   def can?(_, :nested_expressions), do: true
   def can?(_, {:filter_expr, _expr}), do: true
   def can?(_, :boolean_filter), do: true
+  def can?(_, :sort), do: true
+  def can?(_, {:sort, _}), do: true
   def can?(_, _), do: false
 
   # --- Query shaping ------------------------------------------------------
@@ -92,6 +95,46 @@ defmodule AshDynamo.DataLayer do
     {:ok, %{query | filter: filter}}
   end
 
+  @impl true
+  def sort(query, [], _resource), do: {:ok, query}
+  def sort(query, nil, _resource), do: {:ok, query}
+
+  def sort(query, sort, resource) do
+    sort_key = Info.sort_key(resource)
+
+    case validate_sort(sort, sort_key) do
+      {:ok, direction} ->
+        {:ok, %{query | sort: direction}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp validate_sort([{field, direction}], sort_key) when direction in [:asc, :desc] do
+    field_name = attr_name(field)
+
+    cond do
+      is_nil(sort_key) ->
+        {:error, "Cannot sort without a sort key defined on the resource"}
+
+      field_name != sort_key ->
+        {:error,
+         "DynamoDB only supports sorting by the sort key (#{sort_key}), got: #{field_name}"}
+
+      true ->
+        {:ok, direction}
+    end
+  end
+
+  defp validate_sort([{_field, _direction} | _rest], _sort_key) do
+    {:error, "DynamoDB only supports sorting by a single field (the sort key)"}
+  end
+
+  defp validate_sort(sort, _sort_key) do
+    {:error, "Unsupported sort format: #{inspect(sort)}"}
+  end
+
   # --- Execution ----------------------------------------------------------
   @impl true
   def run_query(%Query{} = query, resource) do
@@ -100,6 +143,7 @@ defmodule AshDynamo.DataLayer do
 
     {mode, opts} = request_opts(query, resource)
     opts = merge_projection_opts(opts, select_fields)
+    opts = merge_sort_opts(opts, query.sort, mode)
 
     result =
       mode
@@ -114,6 +158,14 @@ defmodule AshDynamo.DataLayer do
       apply_runtime_filter(items, query)
     end
   end
+
+  # DynamoDB's ScanIndexForward parameter controls sort order for Query operations.
+  # true (default) = ascending by sort key, false = descending.
+  # This only applies to Query mode; Scan returns items in no particular order.
+  defp merge_sort_opts(opts, nil, _mode), do: opts
+  defp merge_sort_opts(opts, :asc, :query), do: Keyword.put(opts, :scan_index_forward, true)
+  defp merge_sort_opts(opts, :desc, :query), do: Keyword.put(opts, :scan_index_forward, false)
+  defp merge_sort_opts(opts, _sort, :scan), do: opts
 
   @impl true
   def create(resource, changeset) do
