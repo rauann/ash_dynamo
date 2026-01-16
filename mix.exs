@@ -1,7 +1,7 @@
 defmodule AshDynamo.MixProject do
   use Mix.Project
 
-  @version "0.2.1"
+  @version "0.3.0"
 
   @moduledoc "DynamoDB data layer for Ash resources."
 
@@ -87,7 +87,6 @@ defmodule AshDynamo.MixProject do
   end
 
   defp test_coverage do
-    # quokka:sort
     [
       ignore_modules: [
         AshDynamo.DataLayer.Dynamodb.Options,

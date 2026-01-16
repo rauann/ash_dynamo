@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](Https://conventionalcommits.org) for commit guidelines.
 
+## [v0.3.0](https://github.com/rauann/ash_dynamo/compare/v0.2.1...v0.3.0) (2026-01-15)
+
+### Features
+
+- Implement `:sort` capability for sort key ordering via `ScanIndexForward`
+- Add runtime sort fallback using `Ash.Actions.Sort.runtime_sort` for:
+  - Scan mode (no partition key filter)
+  - Non-sort-key fields in Query mode
+  - Multiple sort fields
+
 ## [v0.2.1](https://github.com/rauann/ash_dynamo/compare/v0.2.0...v0.2.1) (2025-12-11)
 
 ### Chores

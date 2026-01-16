@@ -12,6 +12,7 @@ This document describes which Ash features are supported by AshDynamo and how th
 | `:destroy` | ✅     | DeleteItem with existence check                    |
 | `:select`  | ✅     | ProjectionExpression                               |
 | `:filter`  | ✅     | KeyCondition + FilterExpression + Runtime fallback |
+| `:sort`    | ✅     | ScanIndexForward (SK) + Runtime fallback           |
 
 ## Filter Operators
 
@@ -45,13 +46,37 @@ This document describes which Ash features are supported by AshDynamo and how th
 | `is_nil`     | ⏳ Runtime filter |
 | `or`         | ⏳ Runtime filter |
 
+## Sort
+
+DynamoDB natively supports sorting only by the sort key within a partition, controlled by the `ScanIndexForward` parameter.
+
+**Native sort (ScanIndexForward):**
+
+Used when ALL conditions are met:
+
+- Query mode (partition key filter present)
+- Sorting by a single field
+- That field is the sort key
+
+| Direction | ScanIndexForward |
+| --------- | ---------------- |
+| `:asc`    | `true`           |
+| `:desc`   | `false`          |
+
+**Runtime sort fallback:**
+
+Used for all other cases:
+
+- Scan mode (no partition key filter)
+- Sorting by non-sort-key field
+- Multiple sort fields (even if sort key is included)
+
 ## Not Implemented
 
 | Feature               | Notes                                                 |
 | --------------------- | ----------------------------------------------------- |
 | `:or`                 | Via filter expression                                 |
 | `:upsert`             | Explicit upsert mode                                  |
-| `:sort`               | Sort by SK                                            |
 | `:limit` / `:offset`  | Pagination via `LastEvaluatedKey`/`ExclusiveStartKey` |
 | `:aggregate`          | Via `Select: COUNT`                                   |
 | Bulk operations       | Bulk insert/update/delete                             |
