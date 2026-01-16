@@ -98,42 +98,7 @@ defmodule AshDynamo.DataLayer do
   @impl true
   def sort(query, [], _resource), do: {:ok, query}
   def sort(query, nil, _resource), do: {:ok, query}
-
-  def sort(query, sort, resource) do
-    sort_key = Info.sort_key(resource)
-
-    case validate_sort(sort, sort_key) do
-      {:ok, direction} ->
-        {:ok, %{query | sort: direction}}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  defp validate_sort([{field, direction}], sort_key) when direction in [:asc, :desc] do
-    field_name = attr_name(field)
-
-    cond do
-      is_nil(sort_key) ->
-        {:error, "Cannot sort without a sort key defined on the resource"}
-
-      field_name != sort_key ->
-        {:error,
-         "DynamoDB only supports sorting by the sort key (#{sort_key}), got: #{field_name}"}
-
-      true ->
-        {:ok, direction}
-    end
-  end
-
-  defp validate_sort([{_field, _direction} | _rest], _sort_key) do
-    {:error, "DynamoDB only supports sorting by a single field (the sort key)"}
-  end
-
-  defp validate_sort(sort, _sort_key) do
-    {:error, "Unsupported sort format: #{inspect(sort)}"}
-  end
+  def sort(query, sort, _resource), do: {:ok, %{query | sort: sort}}
 
   # --- Execution ----------------------------------------------------------
   @impl true
@@ -143,7 +108,7 @@ defmodule AshDynamo.DataLayer do
 
     {mode, opts} = request_opts(query, resource)
     opts = merge_projection_opts(opts, select_fields)
-    opts = merge_sort_opts(opts, query.sort, mode)
+    opts = merge_sort_opts(opts, query.sort, mode, resource)
 
     result =
       mode
@@ -154,18 +119,69 @@ defmodule AshDynamo.DataLayer do
       |> ExAws.request()
 
     with {:ok, resp} <- result,
-         {:ok, items} <- decode_items(resp, resource) do
-      apply_runtime_filter(items, query)
+         {:ok, items} <- decode_items(resp, resource),
+         {:ok, filtered} <- apply_runtime_filter(items, query) do
+      apply_runtime_sort(filtered, query, mode, resource)
     end
   end
 
   # DynamoDB's ScanIndexForward parameter controls sort order for Query operations.
   # true (default) = ascending by sort key, false = descending.
-  # This only applies to Query mode; Scan returns items in no particular order.
-  defp merge_sort_opts(opts, nil, _mode), do: opts
-  defp merge_sort_opts(opts, :asc, :query), do: Keyword.put(opts, :scan_index_forward, true)
-  defp merge_sort_opts(opts, :desc, :query), do: Keyword.put(opts, :scan_index_forward, false)
-  defp merge_sort_opts(opts, _sort, :scan), do: opts
+  #
+  # ScanIndexForward optimization only applies when ALL conditions are met:
+  # - Query mode (partition key filter present)
+  # - Sorting by a SINGLE field
+  # - That field is the sort key
+  #
+  # All other cases use runtime sort:
+  # - Scan mode (no partition key filter)
+  # - Sorting by non-sort-key field
+  # - Multiple sort fields (even if sort key is included)
+  defp merge_sort_opts(opts, nil, _mode, _resource), do: opts
+  defp merge_sort_opts(opts, [], _mode, _resource), do: opts
+
+  defp merge_sort_opts(opts, [{field, direction}], :query, resource) do
+    sort_key = Info.sort_key(resource)
+
+    if attr_name(field) == sort_key do
+      case direction do
+        :asc -> Keyword.put(opts, :scan_index_forward, true)
+        :desc -> Keyword.put(opts, :scan_index_forward, false)
+      end
+    else
+      opts
+    end
+  end
+
+  defp merge_sort_opts(opts, _sort, _mode, _resource), do: opts
+
+  # Runtime sort is applied when DynamoDB cannot natively sort the results:
+  # - Scan mode: ScanIndexForward doesn't work
+  # - Query mode with non-sort-key field: DynamoDB can only sort by the sort key
+  # In Query mode when sorting by sort key, DynamoDB handles sorting via ScanIndexForward.
+  defp apply_runtime_sort(results, %Query{sort: nil}, _mode, _resource), do: {:ok, results}
+  defp apply_runtime_sort(results, %Query{sort: []}, _mode, _resource), do: {:ok, results}
+
+  defp apply_runtime_sort(results, %Query{sort: sort}, mode, resource) do
+    sort_key = Info.sort_key(resource)
+
+    sorting_by_sort_key? =
+      case sort do
+        [{field, _}] -> attr_name(field) == sort_key
+        _ -> false
+      end
+
+    if mode == :query and sorting_by_sort_key? do
+      {:ok, results}
+    else
+      # rekey?: false prevents Ash from matching sorted records back to originals
+      # by primary key. Without this, records sharing the same Ash primary key
+      # (e.g., same partition key but different sort keys) would all resolve to
+      # the first match, duplicating records in the output.
+      sorted = Ash.Actions.Sort.runtime_sort(results, sort, rekey?: false)
+      {:ok, sorted}
+    end
+  end
 
   @impl true
   def create(resource, changeset) do
