@@ -25,16 +25,24 @@ defmodule AshDynamo.DataLayer.Info do
     Extension.get_opt(resource, [:dynamodb], :sort_key, nil, true)
   end
 
-  @doc "Global secondary index definitions."
-  @spec global_secondary_indexes(Ash.Resource.t() | Spark.Dsl.t()) :: list
+  @doc "Global secondary index definitions (list of `%SecondaryIndex{type: :global}` structs)."
+  @spec global_secondary_indexes(Ash.Resource.t() | Spark.Dsl.t()) :: [
+          AshDynamo.DataLayer.SecondaryIndex.t()
+        ]
   def global_secondary_indexes(resource) do
-    Extension.get_opt(resource, [:dynamodb], :global_secondary_indexes, [], true)
+    resource
+    |> Extension.get_entities([:dynamodb])
+    |> Enum.filter(&(&1.type == :global))
   end
 
-  @doc "Local secondary index definitions."
-  @spec local_secondary_indexes(Ash.Resource.t() | Spark.Dsl.t()) :: list
+  @doc "Local secondary index definitions (list of `%SecondaryIndex{type: :local}` structs)."
+  @spec local_secondary_indexes(Ash.Resource.t() | Spark.Dsl.t()) :: [
+          AshDynamo.DataLayer.SecondaryIndex.t()
+        ]
   def local_secondary_indexes(resource) do
-    Extension.get_opt(resource, [:dynamodb], :local_secondary_indexes, [], true)
+    resource
+    |> Extension.get_entities([:dynamodb])
+    |> Enum.filter(&(&1.type == :local))
   end
 
   defp default_table(resource) do

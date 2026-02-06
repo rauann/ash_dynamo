@@ -11,6 +11,30 @@ defmodule AshDynamo.DataLayer do
 
   alias AshDynamo.DataLayer.Info
 
+  @global_secondary_index %Spark.Dsl.Entity{
+    name: :global_secondary_index,
+    describe: "Defines a Global Secondary Index (GSI) for automatic query routing.",
+    target: AshDynamo.DataLayer.SecondaryIndex,
+    args: [:name],
+    auto_set_fields: [type: :global],
+    schema: [
+      name: [
+        type: :atom,
+        required: true,
+        doc: "Index name (used as the DynamoDB `IndexName` parameter)."
+      ],
+      partition_key: [
+        type: :atom,
+        required: true,
+        doc: "Partition (hash) key attribute for this GSI."
+      ],
+      sort_key: [
+        type: :atom,
+        doc: "Optional sort (range) key attribute for this GSI."
+      ]
+    ]
+  }
+
   @dynamodb %Spark.Dsl.Section{
     name: :dynamodb,
     describe: "Configure the DynamoDB table backing this resource for querying.",
@@ -20,6 +44,11 @@ defmodule AshDynamo.DataLayer do
         table "users"
         partition_key :email
         sort_key :inserted_at
+
+        global_secondary_index :by_status do
+          partition_key :status
+          sort_key :inserted_at
+        end
       end
       """
     ],
@@ -37,18 +66,9 @@ defmodule AshDynamo.DataLayer do
         type: :atom,
         default: nil,
         doc: "Optional sort (range) key attribute name."
-      ],
-      global_secondary_indexes: [
-        type: {:list, :any},
-        default: [],
-        doc: "GSI definitions (shape matches ExAws.Dynamo expectations; used for query planning)."
-      ],
-      local_secondary_indexes: [
-        type: {:list, :any},
-        default: [],
-        doc: "LSI definitions (shape matches ExAws.Dynamo expectations; used for query planning)."
       ]
-    ]
+    ],
+    entities: [@global_secondary_index]
   }
 
   use Spark.Dsl.Extension, sections: [@dynamodb]

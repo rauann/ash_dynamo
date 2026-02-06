@@ -75,3 +75,52 @@ defmodule AshDynamo.Test.PostSortKey do
     end
   end
 end
+
+defmodule AshDynamo.Test.PostGSI do
+  @moduledoc false
+
+  use Ash.Resource,
+    data_layer: AshDynamo.DataLayer,
+    domain: AshDynamo.Test.Domain
+
+  dynamodb do
+    table "posts_gsi"
+    partition_key :email
+    sort_key :inserted_at
+
+    global_secondary_index :by_status do
+      partition_key :status
+      sort_key :inserted_at
+    end
+
+    global_secondary_index :by_title do
+      partition_key :title
+    end
+  end
+
+  actions do
+    defaults [:read, :destroy]
+
+    create :create do
+      primary? true
+      accept [:email, :likes, :status, :inserted_at, :title]
+    end
+
+    update :update do
+      accept [:status]
+    end
+  end
+
+  attributes do
+    attribute :email, :string, allow_nil?: false, primary_key?: true
+    attribute :likes, :integer
+    attribute :status, :string, allow_nil?: false
+    attribute :title, :string
+
+    attribute :inserted_at, :string do
+      writable? true
+      default fn -> DateTime.to_iso8601(DateTime.utc_now()) end
+      allow_nil? false
+    end
+  end
+end
