@@ -1,6 +1,7 @@
 defmodule AshDynamo.Test.CreateTest do
   use ExUnit.Case
   import AshDynamo.Test.Generator
+  import AshDynamo.Test.RequestHelper
   import AshDynamo.Test.Setup
 
   alias AshDynamo.Test.Post
@@ -15,10 +16,24 @@ defmodule AshDynamo.Test.CreateTest do
       status: "active"
     }
 
-    result =
-      Post
-      |> Ash.Changeset.for_create(:create, attrs)
-      |> Ash.create()
+    {result, request_body} =
+      capture_dynamo_request(fn ->
+        Post
+        |> Ash.Changeset.for_create(:create, attrs)
+        |> Ash.create()
+      end)
+
+    assert %{
+             "ConditionExpression" => "attribute_not_exists(#pk)",
+             "ExpressionAttributeNames" => %{"#pk" => "email"},
+             "Item" => %{
+               "email" => %{"S" => "john.doe@example.com"},
+               "inserted_at" => %{"S" => _},
+               "status" => %{"S" => "active"},
+               "title" => %{"S" => "foobar"}
+             },
+             "TableName" => "posts"
+           } = request_body
 
     assert {:ok, user} = result
     assert user.email == attrs.email
@@ -35,10 +50,25 @@ defmodule AshDynamo.Test.CreateTest do
       status: "active"
     }
 
-    result =
-      Post
-      |> Ash.Changeset.for_create(:create, attrs)
-      |> Ash.create()
+    {result, request_body} =
+      capture_dynamo_request(fn ->
+        Post
+        |> Ash.Changeset.for_create(:create, attrs)
+        |> Ash.create()
+      end)
+
+    email = post.email
+
+    assert %{
+             "ConditionExpression" => "attribute_not_exists(#pk)",
+             "ExpressionAttributeNames" => %{"#pk" => "email"},
+             "Item" => %{
+               "email" => %{"S" => ^email},
+               "inserted_at" => %{"S" => _},
+               "status" => %{"S" => "active"}
+             },
+             "TableName" => "posts"
+           } = request_body
 
     assert {:error, error} = result
     assert Ash.Error.error_descriptions(error) =~ "ConditionalCheckFailedException"
@@ -53,10 +83,26 @@ defmodule AshDynamo.Test.CreateTest do
       status: "active"
     }
 
-    result =
-      PostSortKey
-      |> Ash.Changeset.for_create(:create, attrs)
-      |> Ash.create()
+    email = post.email
+    inserted_at = post.inserted_at
+
+    {result, request_body} =
+      capture_dynamo_request(fn ->
+        PostSortKey
+        |> Ash.Changeset.for_create(:create, attrs)
+        |> Ash.create()
+      end)
+
+    assert %{
+             "ConditionExpression" => "attribute_not_exists(#pk) AND attribute_not_exists(#sk)",
+             "ExpressionAttributeNames" => %{"#pk" => "email", "#sk" => "inserted_at"},
+             "Item" => %{
+               "email" => %{"S" => ^email},
+               "inserted_at" => %{"S" => ^inserted_at},
+               "status" => %{"S" => "active"}
+             },
+             "TableName" => "posts_sort_key"
+           } = request_body
 
     assert {:error, error} = result
     assert Ash.Error.error_descriptions(error) =~ "ConditionalCheckFailedException"

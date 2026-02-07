@@ -1,5 +1,6 @@
 defmodule AshDynamo.Test.ReadTest do
   use ExUnit.Case
+  import AshDynamo.Test.RequestHelper
   import AshDynamo.Test.Setup
 
   alias AshDynamo.Test.Post
@@ -18,8 +19,15 @@ defmodule AshDynamo.Test.ReadTest do
     |> ExAws.Dynamo.put_item(attrs)
     |> ExAws.request!()
 
-    {:ok, [resource]} = Ash.read(Post)
+    {result, request_body} = capture_dynamo_request(fn -> Ash.read(Post) end)
 
+    assert %{
+             "ExpressionAttributeNames" => _,
+             "ProjectionExpression" => _,
+             "TableName" => "posts"
+           } = request_body
+
+    assert {:ok, [resource]} = result
     assert resource.email == attrs.email
     assert resource.inserted_at == attrs.inserted_at
     assert resource.title == attrs.title

@@ -1,6 +1,7 @@
 defmodule AshDynamo.Test.UpdateTest do
   use ExUnit.Case
   import AshDynamo.Test.Generator
+  import AshDynamo.Test.RequestHelper
   import AshDynamo.Test.Setup
 
   alias AshDynamo.Test.PostSortKey
@@ -11,10 +12,24 @@ defmodule AshDynamo.Test.UpdateTest do
   test "updates a resource" do
     post = generate(post())
 
-    result =
-      post
-      |> Ash.Changeset.for_update(:update, %{status: "inactive"})
-      |> Ash.update()
+    {result, request_body} =
+      capture_dynamo_request(fn ->
+        post
+        |> Ash.Changeset.for_update(:update, %{status: "inactive"})
+        |> Ash.update()
+      end)
+
+    email = post.email
+
+    assert %{
+             "ConditionExpression" => "attribute_exists(#pk)",
+             "ExpressionAttributeNames" => %{"#k1" => "status", "#pk" => "email"},
+             "ExpressionAttributeValues" => %{":v1" => %{"S" => "inactive"}},
+             "Key" => %{"email" => %{"S" => ^email}},
+             "ReturnValues" => "ALL_NEW",
+             "TableName" => "posts",
+             "UpdateExpression" => "SET #k1 = :v1"
+           } = request_body
 
     assert {:ok, updated} = result
     assert updated.email == post.email
@@ -31,10 +46,25 @@ defmodule AshDynamo.Test.UpdateTest do
     assert post1.email == post2.email
     refute post1.inserted_at == post2.inserted_at
 
-    result =
-      post2
-      |> Ash.Changeset.for_update(:update, %{status: "inactive"})
-      |> Ash.update()
+    {result, request_body} =
+      capture_dynamo_request(fn ->
+        post2
+        |> Ash.Changeset.for_update(:update, %{status: "inactive"})
+        |> Ash.update()
+      end)
+
+    assert %{
+             "ConditionExpression" => "attribute_exists(#pk)",
+             "ExpressionAttributeNames" => %{"#k1" => "status", "#pk" => "email"},
+             "ExpressionAttributeValues" => %{":v1" => %{"S" => "inactive"}},
+             "Key" => %{
+               "email" => %{"S" => ^email},
+               "inserted_at" => %{"S" => ^inserted_at}
+             },
+             "ReturnValues" => "ALL_NEW",
+             "TableName" => "posts_sort_key",
+             "UpdateExpression" => "SET #k1 = :v1"
+           } = request_body
 
     assert {:ok, updated} = result
     assert updated.status == "inactive"
@@ -57,10 +87,24 @@ defmodule AshDynamo.Test.UpdateTest do
   test "when resource does not exist, returns an error" do
     post = Enum.fetch!(post(), 1)
 
-    result =
-      post
-      |> Ash.Changeset.for_update(:update, %{status: "inactive"})
-      |> Ash.update()
+    {result, request_body} =
+      capture_dynamo_request(fn ->
+        post
+        |> Ash.Changeset.for_update(:update, %{status: "inactive"})
+        |> Ash.update()
+      end)
+
+    email = post.email
+
+    assert %{
+             "ConditionExpression" => "attribute_exists(#pk)",
+             "ExpressionAttributeNames" => %{"#k1" => "status", "#pk" => "email"},
+             "ExpressionAttributeValues" => %{":v1" => %{"S" => "inactive"}},
+             "Key" => %{"email" => %{"S" => ^email}},
+             "ReturnValues" => "ALL_NEW",
+             "TableName" => "posts",
+             "UpdateExpression" => "SET #k1 = :v1"
+           } = request_body
 
     assert {:error, error} = result
     assert Ash.Error.error_descriptions(error) =~ "ConditionalCheckFailedException"

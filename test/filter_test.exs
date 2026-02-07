@@ -1,6 +1,7 @@
 defmodule AshDynamo.Test.FilterTest do
   use ExUnit.Case
   import AshDynamo.Test.Generator
+  import AshDynamo.Test.RequestHelper
   import AshDynamo.Test.Setup
 
   require Ash.Query
@@ -18,8 +19,16 @@ defmodule AshDynamo.Test.FilterTest do
 
       query = Ash.Query.filter(Post, status == "inactive")
 
-      {:ok, [result]} = Ash.read(query)
+      {result, request_body} =
+        capture_dynamo_request(fn -> Ash.read(query) end)
 
+      assert %{
+               "ExpressionAttributeNames" => _,
+               "ProjectionExpression" => _,
+               "TableName" => "posts"
+             } = request_body
+
+      assert {:ok, [result]} = result
       assert result.email == post.email
       assert result.status == post.status
     end
@@ -31,8 +40,16 @@ defmodule AshDynamo.Test.FilterTest do
 
       query = Ash.Query.filter(Post, is_nil(title))
 
-      {:ok, [result]} = Ash.read(query)
+      {result, request_body} =
+        capture_dynamo_request(fn -> Ash.read(query) end)
 
+      assert %{
+               "ExpressionAttributeNames" => _,
+               "ProjectionExpression" => _,
+               "TableName" => "posts"
+             } = request_body
+
+      assert {:ok, [result]} = result
       assert result.email == post.email
     end
 
@@ -43,8 +60,16 @@ defmodule AshDynamo.Test.FilterTest do
 
       query = Ash.Query.filter(Post, title in ["foo", "bar"])
 
-      {:ok, [result]} = Ash.read(query)
+      {result, request_body} =
+        capture_dynamo_request(fn -> Ash.read(query) end)
 
+      assert %{
+               "ExpressionAttributeNames" => _,
+               "ProjectionExpression" => _,
+               "TableName" => "posts"
+             } = request_body
+
+      assert {:ok, [result]} = result
       assert result.email == post.email
       assert result.status == post.status
     end
@@ -56,8 +81,16 @@ defmodule AshDynamo.Test.FilterTest do
 
       query = Ash.Query.filter(Post, contains(title, "foo"))
 
-      {:ok, [result]} = Ash.read(query)
+      {result, request_body} =
+        capture_dynamo_request(fn -> Ash.read(query) end)
 
+      assert %{
+               "ExpressionAttributeNames" => _,
+               "ProjectionExpression" => _,
+               "TableName" => "posts"
+             } = request_body
+
+      assert {:ok, [result]} = result
       assert result.email == post.email
       assert result.status == post.status
     end
@@ -69,8 +102,16 @@ defmodule AshDynamo.Test.FilterTest do
 
       query = Ash.Query.filter(Post, title == "foobar" or status == "active")
 
-      {:ok, [result]} = Ash.read(query)
+      {result, request_body} =
+        capture_dynamo_request(fn -> Ash.read(query) end)
 
+      assert %{
+               "ExpressionAttributeNames" => _,
+               "ProjectionExpression" => _,
+               "TableName" => "posts"
+             } = request_body
+
+      assert {:ok, [result]} = result
       assert result.email == post.email
       assert result.status == post.status
     end
@@ -84,8 +125,18 @@ defmodule AshDynamo.Test.FilterTest do
 
       query = Ash.Query.filter(Post, email == ^email)
 
-      {:ok, [result]} = Ash.read(query)
+      {result, request_body} =
+        capture_dynamo_request(fn -> Ash.read(query) end)
 
+      assert %{
+               "ExpressionAttributeNames" => _,
+               "ExpressionAttributeValues" => %{":v_pk" => %{"S" => ^email}},
+               "KeyConditionExpression" => "#pk = :v_pk",
+               "ProjectionExpression" => _,
+               "TableName" => "posts"
+             } = request_body
+
+      assert {:ok, [result]} = result
       assert result.email == post.email
       assert result.status == post.status
     end
@@ -101,8 +152,21 @@ defmodule AshDynamo.Test.FilterTest do
         |> Ash.Query.filter(email == ^email)
         |> Ash.Query.filter(inserted_at == ^inserted_at)
 
-      {:ok, [result]} = Ash.read(query)
+      {result, request_body} =
+        capture_dynamo_request(fn -> Ash.read(query) end)
 
+      assert %{
+               "ExpressionAttributeNames" => _,
+               "ExpressionAttributeValues" => %{
+                 ":v_pk" => %{"S" => ^email},
+                 ":v_sk" => %{"S" => ^inserted_at}
+               },
+               "KeyConditionExpression" => "#pk = :v_pk AND #sk = :v_sk",
+               "ProjectionExpression" => _,
+               "TableName" => "posts_sort_key"
+             } = request_body
+
+      assert {:ok, [result]} = result
       assert result.email == post.email
       assert result.status == post.status
     end
@@ -125,8 +189,21 @@ defmodule AshDynamo.Test.FilterTest do
         |> Ash.Query.filter(email == ^email)
         |> Ash.Query.filter(inserted_at > ^one_day_ago)
 
-      {:ok, [result]} = Ash.read(query)
+      {result, request_body} =
+        capture_dynamo_request(fn -> Ash.read(query) end)
 
+      assert %{
+               "ExpressionAttributeNames" => _,
+               "ExpressionAttributeValues" => %{
+                 ":v_pk" => %{"S" => ^email},
+                 ":v_sk" => %{"S" => ^one_day_ago}
+               },
+               "KeyConditionExpression" => "#pk = :v_pk AND #sk > :v_sk",
+               "ProjectionExpression" => _,
+               "TableName" => "posts_sort_key"
+             } = request_body
+
+      assert {:ok, [result]} = result
       assert result.email == post.email
       assert result.status == post.status
     end
@@ -149,8 +226,21 @@ defmodule AshDynamo.Test.FilterTest do
         |> Ash.Query.filter(email == ^email)
         |> Ash.Query.filter(inserted_at >= ^one_day_ago)
 
-      {:ok, [result]} = Ash.read(query)
+      {result, request_body} =
+        capture_dynamo_request(fn -> Ash.read(query) end)
 
+      assert %{
+               "ExpressionAttributeNames" => _,
+               "ExpressionAttributeValues" => %{
+                 ":v_pk" => %{"S" => ^email},
+                 ":v_sk" => %{"S" => ^one_day_ago}
+               },
+               "KeyConditionExpression" => "#pk = :v_pk AND #sk >= :v_sk",
+               "ProjectionExpression" => _,
+               "TableName" => "posts_sort_key"
+             } = request_body
+
+      assert {:ok, [result]} = result
       assert result.email == post.email
       assert result.status == post.status
     end
@@ -173,8 +263,21 @@ defmodule AshDynamo.Test.FilterTest do
         |> Ash.Query.filter(email == ^email)
         |> Ash.Query.filter(inserted_at < ^one_day_after)
 
-      {:ok, [result]} = Ash.read(query)
+      {result, request_body} =
+        capture_dynamo_request(fn -> Ash.read(query) end)
 
+      assert %{
+               "ExpressionAttributeNames" => _,
+               "ExpressionAttributeValues" => %{
+                 ":v_pk" => %{"S" => ^email},
+                 ":v_sk" => %{"S" => ^one_day_after}
+               },
+               "KeyConditionExpression" => "#pk = :v_pk AND #sk < :v_sk",
+               "ProjectionExpression" => _,
+               "TableName" => "posts_sort_key"
+             } = request_body
+
+      assert {:ok, [result]} = result
       assert result.email == post.email
       assert result.status == post.status
     end
@@ -197,8 +300,21 @@ defmodule AshDynamo.Test.FilterTest do
         |> Ash.Query.filter(email == ^email)
         |> Ash.Query.filter(inserted_at <= ^one_day_after)
 
-      {:ok, [result]} = Ash.read(query)
+      {result, request_body} =
+        capture_dynamo_request(fn -> Ash.read(query) end)
 
+      assert %{
+               "ExpressionAttributeNames" => _,
+               "ExpressionAttributeValues" => %{
+                 ":v_pk" => %{"S" => ^email},
+                 ":v_sk" => %{"S" => ^one_day_after}
+               },
+               "KeyConditionExpression" => "#pk = :v_pk AND #sk <= :v_sk",
+               "ProjectionExpression" => _,
+               "TableName" => "posts_sort_key"
+             } = request_body
+
+      assert {:ok, [result]} = result
       assert result.email == post.email
       assert result.status == post.status
     end
@@ -232,8 +348,23 @@ defmodule AshDynamo.Test.FilterTest do
         |> Ash.Query.filter(inserted_at <= ^one_day_after)
         |> Ash.Query.filter(status == "inactive")
 
-      {:ok, [result]} = Ash.read(query)
+      {result, request_body} =
+        capture_dynamo_request(fn -> Ash.read(query) end)
 
+      assert %{
+               "ExpressionAttributeNames" => _,
+               "ExpressionAttributeValues" => %{
+                 ":fv0" => %{"S" => "inactive"},
+                 ":v_pk" => %{"S" => ^email},
+                 ":v_sk" => %{"S" => ^one_day_after}
+               },
+               "FilterExpression" => "#fa0 = :fv0",
+               "KeyConditionExpression" => "#pk = :v_pk AND #sk <= :v_sk",
+               "ProjectionExpression" => _,
+               "TableName" => "posts_sort_key"
+             } = request_body
+
+      assert {:ok, [result]} = result
       assert result.email == post.email
       assert result.status == post.status
     end
@@ -256,8 +387,22 @@ defmodule AshDynamo.Test.FilterTest do
         |> Ash.Query.filter(email == ^email)
         |> Ash.Query.filter(status != "inactive")
 
-      {:ok, [result]} = Ash.read(query)
+      {result, request_body} =
+        capture_dynamo_request(fn -> Ash.read(query) end)
 
+      assert %{
+               "ExpressionAttributeNames" => _,
+               "ExpressionAttributeValues" => %{
+                 ":fv0" => %{"S" => "inactive"},
+                 ":v_pk" => %{"S" => ^email}
+               },
+               "FilterExpression" => "#fa0 <> :fv0",
+               "KeyConditionExpression" => "#pk = :v_pk",
+               "ProjectionExpression" => _,
+               "TableName" => "posts_sort_key"
+             } = request_body
+
+      assert {:ok, [result]} = result
       assert result.email == post.email
       assert result.status == post.status
     end
@@ -280,8 +425,22 @@ defmodule AshDynamo.Test.FilterTest do
         |> Ash.Query.filter(email == ^email)
         |> Ash.Query.filter(likes < 4)
 
-      {:ok, [result]} = Ash.read(query)
+      {result, request_body} =
+        capture_dynamo_request(fn -> Ash.read(query) end)
 
+      assert %{
+               "ExpressionAttributeNames" => _,
+               "ExpressionAttributeValues" => %{
+                 ":fv0" => %{"N" => "4"},
+                 ":v_pk" => %{"S" => ^email}
+               },
+               "FilterExpression" => "#fa0 < :fv0",
+               "KeyConditionExpression" => "#pk = :v_pk",
+               "ProjectionExpression" => _,
+               "TableName" => "posts_sort_key"
+             } = request_body
+
+      assert {:ok, [result]} = result
       assert result.email == post.email
       assert result.status == post.status
     end
@@ -304,8 +463,22 @@ defmodule AshDynamo.Test.FilterTest do
         |> Ash.Query.filter(email == ^email)
         |> Ash.Query.filter(likes <= 4)
 
-      {:ok, [result]} = Ash.read(query)
+      {result, request_body} =
+        capture_dynamo_request(fn -> Ash.read(query) end)
 
+      assert %{
+               "ExpressionAttributeNames" => _,
+               "ExpressionAttributeValues" => %{
+                 ":fv0" => %{"N" => "4"},
+                 ":v_pk" => %{"S" => ^email}
+               },
+               "FilterExpression" => "#fa0 <= :fv0",
+               "KeyConditionExpression" => "#pk = :v_pk",
+               "ProjectionExpression" => _,
+               "TableName" => "posts_sort_key"
+             } = request_body
+
+      assert {:ok, [result]} = result
       assert result.email == post.email
       assert result.status == post.status
     end
@@ -328,8 +501,22 @@ defmodule AshDynamo.Test.FilterTest do
         |> Ash.Query.filter(email == ^email)
         |> Ash.Query.filter(likes > 3)
 
-      {:ok, [result]} = Ash.read(query)
+      {result, request_body} =
+        capture_dynamo_request(fn -> Ash.read(query) end)
 
+      assert %{
+               "ExpressionAttributeNames" => _,
+               "ExpressionAttributeValues" => %{
+                 ":fv0" => %{"N" => "3"},
+                 ":v_pk" => %{"S" => ^email}
+               },
+               "FilterExpression" => "#fa0 > :fv0",
+               "KeyConditionExpression" => "#pk = :v_pk",
+               "ProjectionExpression" => _,
+               "TableName" => "posts_sort_key"
+             } = request_body
+
+      assert {:ok, [result]} = result
       assert result.email == post.email
       assert result.status == post.status
     end
@@ -352,8 +539,22 @@ defmodule AshDynamo.Test.FilterTest do
         |> Ash.Query.filter(email == ^email)
         |> Ash.Query.filter(likes >= 3)
 
-      {:ok, [result]} = Ash.read(query)
+      {result, request_body} =
+        capture_dynamo_request(fn -> Ash.read(query) end)
 
+      assert %{
+               "ExpressionAttributeNames" => _,
+               "ExpressionAttributeValues" => %{
+                 ":fv0" => %{"N" => "3"},
+                 ":v_pk" => %{"S" => ^email}
+               },
+               "FilterExpression" => "#fa0 >= :fv0",
+               "KeyConditionExpression" => "#pk = :v_pk",
+               "ProjectionExpression" => _,
+               "TableName" => "posts_sort_key"
+             } = request_body
+
+      assert {:ok, [result]} = result
       assert result.email == post.email
       assert result.status == post.status
     end
@@ -377,8 +578,23 @@ defmodule AshDynamo.Test.FilterTest do
         |> Ash.Query.filter(email == ^email and likes >= 3)
         |> Ash.Query.filter(contains(title, "foo"))
 
-      {:ok, [result]} = Ash.read(query)
+      {result, request_body} =
+        capture_dynamo_request(fn -> Ash.read(query) end)
 
+      assert %{
+               "ExpressionAttributeNames" => _,
+               "ExpressionAttributeValues" => %{
+                 ":fv0" => %{"S" => "foo"},
+                 ":fv1" => %{"N" => "3"},
+                 ":v_pk" => %{"S" => ^email}
+               },
+               "FilterExpression" => "contains(#fa0, :fv0) AND #fa1 >= :fv1",
+               "KeyConditionExpression" => "#pk = :v_pk",
+               "ProjectionExpression" => _,
+               "TableName" => "posts_sort_key"
+             } = request_body
+
+      assert {:ok, [result]} = result
       assert result.email == post.email
       assert result.status == post.status
     end
