@@ -90,6 +90,7 @@ defmodule AshDynamo.MixProject do
     [
       ignore_modules: [
         AshDynamo.DataLayer.Dynamodb.Options,
+        AshDynamo.DataLayer.Dynamodb.GlobalSecondaryIndex,
         ~r/Inspect/,
         ~r/\.Test\./
       ],

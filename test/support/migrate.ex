@@ -16,22 +16,7 @@ defmodule AshDynamo.Test.Migrate do
 
       global_secondary_indexes = DynamoInfo.global_secondary_indexes(resource)
 
-      global_indexes =
-        Enum.map(global_secondary_indexes, fn index ->
-          key_schema =
-            [%{attribute_name: "#{index.partition_key}", key_type: "HASH"}] ++
-              if index.sort_key do
-                [%{attribute_name: "#{index.sort_key}", key_type: "RANGE"}]
-              else
-                []
-              end
-
-          %{
-            index_name: "#{index.name}",
-            key_schema: key_schema,
-            projection: %{projection_type: "ALL"}
-          }
-        end)
+      global_indexes = Enum.map(global_secondary_indexes, &build_index/1)
 
       key_spec =
         [{partition_key, :hash}] ++
@@ -82,6 +67,22 @@ defmodule AshDynamo.Test.Migrate do
       |> ExAws.Dynamo.delete_table()
       |> ExAws.request!()
     end)
+  end
+
+  defp build_index(index) do
+    key_schema =
+      [%{attribute_name: "#{index.partition_key}", key_type: "HASH"}] ++
+        if index.sort_key do
+          [%{attribute_name: "#{index.sort_key}", key_type: "RANGE"}]
+        else
+          []
+        end
+
+    %{
+      index_name: "#{index.name}",
+      key_schema: key_schema,
+      projection: %{projection_type: "ALL"}
+    }
   end
 
   defp resources, do: Ash.Domain.Info.resources(AshDynamo.Test.Domain)

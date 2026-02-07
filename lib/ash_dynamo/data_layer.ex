@@ -222,10 +222,7 @@ defmodule AshDynamo.DataLayer do
     with {:ok, schema} <- Ash.Changeset.apply_attributes(changeset) do
       pk = Info.partition_key(resource)
       sk = Info.sort_key(resource)
-
-      key =
-        %{"#{pk}" => Map.get(schema, pk)}
-        |> then(fn k -> if sk, do: Map.put(k, sk, Map.get(schema, sk)), else: k end)
+      key = build_item_key(schema, pk, sk)
 
       {condition_expression, names} =
         case sk do
@@ -253,10 +250,7 @@ defmodule AshDynamo.DataLayer do
     attrs = prepare_attrs(schema, Map.keys(changeset.attributes))
     pk = Info.partition_key(resource)
     sk = Info.sort_key(resource)
-
-    key =
-      %{"#{pk}" => Map.get(schema, pk)}
-      |> then(fn k -> if sk, do: Map.put(k, sk, Map.get(schema, sk)), else: k end)
+    key = build_item_key(schema, pk, sk)
 
     # Build SET expr for non-key fields
     non_keys =
@@ -353,6 +347,11 @@ defmodule AshDynamo.DataLayer do
     |> Map.from_struct()
     |> Map.take(allowed_keys)
   end
+
+  defp build_item_key(schema, pk, nil), do: %{"#{pk}" => Map.get(schema, pk)}
+
+  defp build_item_key(schema, pk, sk),
+    do: %{"#{pk}" => Map.get(schema, pk), "#{sk}" => Map.get(schema, sk)}
 
   # Decide which attributes we ask Dynamo to return. We always include:
   # - the user’s select (or defaults if none were provided)
