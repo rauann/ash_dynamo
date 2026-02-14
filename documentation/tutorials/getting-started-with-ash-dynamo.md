@@ -14,6 +14,11 @@ defmodule MyApp.Post do
     table "posts"
     partition_key :id
     sort_key :inserted_at
+
+    global_secondary_index :by_status do
+      partition_key :status
+      sort_key :inserted_at
+    end
   end
 
   actions do

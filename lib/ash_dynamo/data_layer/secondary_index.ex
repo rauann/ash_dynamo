@@ -8,9 +8,15 @@ defmodule AshDynamo.DataLayer.SecondaryIndex do
   The `:type` field is auto-set by the entity definition:
   - `:global` for Global Secondary Indexes
   - `:local` for Local Secondary Indexes
-
-  Projection is always `ALL` — every index includes all table attributes.
   """
+
+  @type t :: %__MODULE__{
+          name: atom(),
+          type: :global | :local,
+          partition_key: atom(),
+          sort_key: atom() | nil,
+          __spark_metadata__: map() | nil
+        }
 
   defstruct [
     :name,
