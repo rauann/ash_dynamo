@@ -126,9 +126,10 @@ defmodule AshDynamo.DataLayer do
     table = Info.table(resource)
     select_fields = projection_fields(query, resource)
 
-    {mode, opts} = request_opts(query, resource)
+    {mode, opts, effective_sk} = request_opts(query, resource)
+
     opts = merge_projection_opts(opts, select_fields)
-    opts = merge_sort_opts(opts, query.sort, mode, resource)
+    opts = merge_sort_opts(opts, query.sort, mode, effective_sk)
 
     result =
       mode
@@ -141,7 +142,7 @@ defmodule AshDynamo.DataLayer do
     with {:ok, resp} <- result,
          {:ok, items} <- decode_items(resp, resource),
          {:ok, filtered} <- apply_runtime_filter(items, query) do
-      apply_runtime_sort(filtered, query, mode, resource)
+      apply_runtime_sort(filtered, query, mode, effective_sk)
     end
   end
 
@@ -157,13 +158,11 @@ defmodule AshDynamo.DataLayer do
   # - Scan mode (no partition key filter)
   # - Sorting by non-sort-key field
   # - Multiple sort fields (even if sort key is included)
-  defp merge_sort_opts(opts, nil, _mode, _resource), do: opts
-  defp merge_sort_opts(opts, [], _mode, _resource), do: opts
+  defp merge_sort_opts(opts, nil, _mode, _effective_sk), do: opts
+  defp merge_sort_opts(opts, [], _mode, _effective_sk), do: opts
 
-  defp merge_sort_opts(opts, [{field, direction}], :query, resource) do
-    sort_key = Info.sort_key(resource)
-
-    if attr_name(field) == sort_key do
+  defp merge_sort_opts(opts, [{field, direction}], :query, effective_sk) do
+    if attr_name(field) == effective_sk do
       case direction do
         :asc -> Keyword.put(opts, :scan_index_forward, true)
         :desc -> Keyword.put(opts, :scan_index_forward, false)
@@ -173,21 +172,19 @@ defmodule AshDynamo.DataLayer do
     end
   end
 
-  defp merge_sort_opts(opts, _sort, _mode, _resource), do: opts
+  defp merge_sort_opts(opts, _sort, _mode, _effective_sk), do: opts
 
   # Runtime sort is applied when DynamoDB cannot natively sort the results:
   # - Scan mode: ScanIndexForward doesn't work
   # - Query mode with non-sort-key field: DynamoDB can only sort by the sort key
   # In Query mode when sorting by sort key, DynamoDB handles sorting via ScanIndexForward.
-  defp apply_runtime_sort(results, %Query{sort: nil}, _mode, _resource), do: {:ok, results}
-  defp apply_runtime_sort(results, %Query{sort: []}, _mode, _resource), do: {:ok, results}
+  defp apply_runtime_sort(results, %Query{sort: nil}, _mode, _effective_sk), do: {:ok, results}
+  defp apply_runtime_sort(results, %Query{sort: []}, _mode, _effective_sk), do: {:ok, results}
 
-  defp apply_runtime_sort(results, %Query{sort: sort}, mode, resource) do
-    sort_key = Info.sort_key(resource)
-
+  defp apply_runtime_sort(results, %Query{sort: sort}, mode, effective_sk) do
     sorting_by_sort_key? =
       case sort do
-        [{field, _}] -> attr_name(field) == sort_key
+        [{field, _}] -> attr_name(field) == effective_sk
         _ -> false
       end
 
@@ -395,55 +392,93 @@ defmodule AshDynamo.DataLayer do
 
   # Builds DynamoDB request options from an Ash filter.
   #
-  # DynamoDB Query requires a KeyConditionExpression with partition key equality.
-  # If the filter doesn't include the partition key, we fall back to Scan.
+  # Routing priority (see select_index/2):
+  #   1. Table partition key match  -> Query on main table (strongly consistent)
+  #   2. GSI partition key match    -> Query with IndexName (eventually consistent)
+  #   3. Neither                    -> Scan (fallback)
   #
   # Filter predicates are partitioned into three categories:
   #   1. Partition key (PK) - must be equality (=), goes to KeyConditionExpression
   #   2. Sort key (SK) - supports =, <, <=, >, >=, goes to KeyConditionExpression
   #   3. Non-key attributes - go to FilterExpression (server-side filtering)
   #
-  # Example: Given filter `email == "foo" and inserted_at > "2024-01-01" and status == "active"`
-  #   - KeyConditionExpression: "#pk = :v_pk AND #sk > :v_sk"
-  #   - FilterExpression: "#fa0 = :fv0"
-  #   - expression_attribute_names: %{"#pk" => "email", "#sk" => "inserted_at", "#fa0" => "status"}
-  #   - expression_attribute_values: %{"v_pk" => "foo", "v_sk" => "2024-01-01", "fv0" => "active"}
-  #
-  # Returns {:query | :scan, opts} for run_query/2.
-  defp request_opts(%Query{filter: nil}, _resource), do: {:scan, []}
+  # Returns {mode, opts, effective_sk} where effective_sk is the sort key
+  # of the selected index (or table), used for ScanIndexForward optimization.
+  defp request_opts(%Query{filter: nil}, _resource), do: {:scan, [], nil}
 
   defp request_opts(%Query{filter: filter}, resource) do
-    pk = Info.partition_key(resource)
-    sk = Info.sort_key(resource)
-    key_attrs = [pk, sk] |> Enum.reject(&is_nil/1)
-
     # Convert to simple filter, skipping unsupported expressions (OR, contains).
     # Skipped expressions that are not implemented on dynamo query (i.e OR, or
     # contains when scan is used) are handled by runtime filter.
     filter = Ash.Filter.to_simple_filter(filter, skip_invalid?: true)
 
-    case fetch_key_value(filter, pk) do
-      {:ok, {pk_value, _}} ->
-        # Partition predicates: key vs non-key
-        {_key_preds, filter_preds} = partition_predicates(filter, key_attrs)
+    case select_index(filter, resource) do
+      {pk, pk_value, sk, extra_opts} ->
+        build_query_request(filter, pk, pk_value, sk, extra_opts)
 
-        # Build KeyConditionExpression (PK + SK)
-        {key_expr, names, values} = build_key_condition(pk, pk_value, sk, filter)
-
-        # Build FilterExpression (non-key attributes)
-        {filter_expr, names, values} = build_filter_expression(filter_preds, names, values)
-
-        {:query,
-         [
-           key_condition_expression: key_expr,
-           expression_attribute_names: names,
-           expression_attribute_values: values
-         ]
-         |> maybe_put(:filter_expression, filter_expr)}
-
-      :error ->
-        {:scan, []}
+      :scan ->
+        {:scan, [], nil}
     end
+  end
+
+  # Selects which index (table or GSI) can serve the query.
+  # Table PK takes priority over GSIs because main table queries are strongly consistent.
+  defp select_index(filter, resource) do
+    pk = Info.partition_key(resource)
+    sk = Info.sort_key(resource)
+
+    with :error <- match_table_key(filter, pk, sk),
+         :error <- match_gsi(filter, Info.global_secondary_indexes(resource)) do
+      :scan
+    end
+  end
+
+  defp match_table_key(filter, pk, sk) do
+    case fetch_key_value(filter, pk) do
+      {:ok, {pk_value, :==}} -> {pk, pk_value, sk, []}
+      _ -> :error
+    end
+  end
+
+  # Prefer GSIs where the SK also appears in the filter (more selective query).
+  defp match_gsi(_filter, []), do: :error
+
+  defp match_gsi(filter, gsis) do
+    gsis
+    |> Enum.filter(fn gsi ->
+      match?({:ok, {_, :==}}, fetch_key_value(filter, gsi.partition_key))
+    end)
+    |> Enum.sort_by(fn gsi ->
+      if gsi.sort_key && fetch_key_value(filter, gsi.sort_key) != :error, do: 0, else: 1
+    end)
+    |> case do
+      [first | _] ->
+        {:ok, {pk_value, _}} = fetch_key_value(filter, first.partition_key)
+        {first.partition_key, pk_value, first.sort_key, index_name: to_string(first.name)}
+
+      [] ->
+        :error
+    end
+  end
+
+  defp build_query_request(filter, pk, pk_value, sk, extra_opts) do
+    key_attrs = Enum.reject([pk, sk], &is_nil/1)
+    # Key predicates are already handled by build_key_condition/4 below
+    {_key_preds, filter_preds} = partition_predicates(filter, key_attrs)
+
+    {key_expr, names, values} = build_key_condition(pk, pk_value, sk, filter)
+    {filter_expr, names, values} = build_filter_expression(filter_preds, names, values)
+
+    opts =
+      [
+        key_condition_expression: key_expr,
+        expression_attribute_names: names,
+        expression_attribute_values: values
+      ]
+      |> maybe_put(:filter_expression, filter_expr)
+      |> Keyword.merge(extra_opts)
+
+    {:query, opts, sk}
   end
 
   defp build_key_condition(pk, pk_value, sk, filter) do
@@ -463,6 +498,8 @@ defmodule AshDynamo.DataLayer do
     end
   end
 
+  # Splits predicates into {key_preds, filter_preds} so key attributes go into
+  # KeyConditionExpression and the rest go into FilterExpression.
   defp partition_predicates(%Ash.Filter.Simple{predicates: predicates}, key_attrs) do
     key_attr_names = Enum.map(key_attrs, &(attr_name(&1) |> to_string()))
 

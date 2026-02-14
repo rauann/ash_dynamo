@@ -4,6 +4,7 @@ defmodule AshDynamo.Test.Generator do
   use Ash.Generator
 
   alias AshDynamo.Test.Post
+  alias AshDynamo.Test.PostGSI
   alias AshDynamo.Test.PostSortKey
 
   def post_changeset(opts \\ []) do
@@ -14,6 +15,17 @@ defmodule AshDynamo.Test.Generator do
     seed_generator(
       %Post{
         email: sequence(:unique_email, fn i -> "post#{i}@example.com" end),
+        status: "active"
+      },
+      overrides: opts
+    )
+  end
+
+  def post_gsi(opts \\ []) do
+    seed_generator(
+      %PostGSI{
+        email: sequence(:unique_email, fn i -> "post#{i}@example.com" end),
+        likes: sequence(:unique_likes, fn i -> i end),
         status: "active"
       },
       overrides: opts
