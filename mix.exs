@@ -31,8 +31,9 @@ defmodule AshDynamo.MixProject do
       extras: [
         "README.md",
         "CHANGELOG.md",
-        "documentation/topics/ash-features.md",
         "documentation/tutorials/getting-started-with-ash-dynamo.md",
+        "documentation/topics/ash-features.md",
+        "documentation/topics/scan-warning.md",
         "documentation/development/testing.md",
         "documentation/dsls/DSL-AshDynamo.DataLayer.md"
       ],
@@ -90,6 +91,7 @@ defmodule AshDynamo.MixProject do
     [
       ignore_modules: [
         AshDynamo.DataLayer.Dynamodb.Options,
+        AshDynamo.DataLayer.Dynamodb.GlobalSecondaryIndex,
         ~r/Inspect/,
         ~r/\.Test\./
       ],

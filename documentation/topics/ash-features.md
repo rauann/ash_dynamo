@@ -4,15 +4,15 @@ This document describes which Ash features are supported by AshDynamo and how th
 
 ## Base Operations
 
-| Capability | Status | Notes                                              |
-| ---------- | ------ | -------------------------------------------------- |
-| `:read`    | ✅     | Query (with PK) or Scan fallback                   |
-| `:create`  | ✅     | PutItem with uniqueness check                      |
-| `:update`  | ✅     | UpdateItem with existence check                    |
-| `:destroy` | ✅     | DeleteItem with existence check                    |
-| `:select`  | ✅     | ProjectionExpression                               |
-| `:filter`  | ✅     | KeyCondition + FilterExpression + Runtime fallback |
-| `:sort`    | ✅     | ScanIndexForward (SK) + Runtime fallback           |
+| Capability | Status | Notes                                                                    |
+| ---------- | ------ | ------------------------------------------------------------------------ |
+| `:read`    | ✅     | Query (with PK) or Scan fallback                                         |
+| `:create`  | ✅     | PutItem with uniqueness check                                            |
+| `:update`  | ✅     | UpdateItem with existence check                                          |
+| `:destroy` | ✅     | DeleteItem with existence check                                          |
+| `:select`  | ✅     | ProjectionExpression                                                     |
+| `:filter`  | ✅     | KeyCondition + FilterExpression + GSI index selection + Runtime fallback |
+| `:sort`    | ✅     | ScanIndexForward (SK) + Runtime fallback                                 |
 
 ## Filter Operators
 
@@ -73,15 +73,15 @@ Used for all other cases:
 
 ## Not Implemented
 
-| Feature               | Notes                                                 |
-| --------------------- | ----------------------------------------------------- |
-| `:or`                 | Via filter expression                                 |
-| `:upsert`             | Explicit upsert mode                                  |
-| `:limit` / `:offset`  | Pagination via `LastEvaluatedKey`/`ExclusiveStartKey` |
-| `:aggregate`          | Via `Select: COUNT`                                   |
-| Bulk operations       | Bulk insert/update/delete                             |
-| GSI/LSI query routing | DSL defined                                           |
-| Transactions          | Via `TransactWriteItems`                              |
+| Feature              | Notes                                                 |
+| -------------------- | ----------------------------------------------------- |
+| `:or`                | Via filter expression                                 |
+| `:upsert`            | Explicit upsert mode                                  |
+| `:limit` / `:offset` | Pagination via `LastEvaluatedKey`/`ExclusiveStartKey` |
+| `:aggregate`         | Via `Select: COUNT`                                   |
+| Bulk operations      | Bulk insert/update/delete                             |
+| LSI index selection  | Local Secondary Index support                         |
+| Transactions         | Via `TransactWriteItems`                              |
 
 > #### Warning {: .warning}
 >

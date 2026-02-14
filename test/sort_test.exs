@@ -1,6 +1,7 @@
 defmodule AshDynamo.Test.SortTest do
   use ExUnit.Case
   import AshDynamo.Test.Generator
+  import AshDynamo.Test.RequestHelper
   import AshDynamo.Test.Setup
 
   require Ash.Query
@@ -48,8 +49,18 @@ defmodule AshDynamo.Test.SortTest do
         |> Ash.Query.filter(email == ^email)
         |> Ash.Query.sort(inserted_at: :desc)
 
-      {:ok, results} = Ash.read(query)
+      {result, request_body} = capture_dynamo_request(fn -> Ash.read(query) end)
 
+      assert %{
+               "ExpressionAttributeNames" => _,
+               "ExpressionAttributeValues" => %{":v_pk" => %{"S" => ^email}},
+               "KeyConditionExpression" => "#pk = :v_pk",
+               "ProjectionExpression" => _,
+               "ScanIndexForward" => false,
+               "TableName" => "posts_sort_key"
+             } = request_body
+
+      assert {:ok, results} = result
       assert length(results) == 3
       assert Enum.at(results, 0).inserted_at == post3.inserted_at
       assert Enum.at(results, 1).inserted_at == post2.inserted_at
@@ -89,8 +100,18 @@ defmodule AshDynamo.Test.SortTest do
         |> Ash.Query.filter(email == ^email)
         |> Ash.Query.sort(inserted_at: :asc)
 
-      {:ok, results} = Ash.read(query)
+      {result, request_body} = capture_dynamo_request(fn -> Ash.read(query) end)
 
+      assert %{
+               "ExpressionAttributeNames" => _,
+               "ExpressionAttributeValues" => %{":v_pk" => %{"S" => ^email}},
+               "KeyConditionExpression" => "#pk = :v_pk",
+               "ProjectionExpression" => _,
+               "ScanIndexForward" => true,
+               "TableName" => "posts_sort_key"
+             } = request_body
+
+      assert {:ok, results} = result
       assert length(results) == 3
       assert Enum.at(results, 0).inserted_at == post1.inserted_at
       assert Enum.at(results, 1).inserted_at == post2.inserted_at
@@ -118,8 +139,17 @@ defmodule AshDynamo.Test.SortTest do
 
       query = Ash.Query.filter(PostSortKey, email == ^email)
 
-      {:ok, results} = Ash.read(query)
+      {result, request_body} = capture_dynamo_request(fn -> Ash.read(query) end)
 
+      assert %{
+               "ExpressionAttributeNames" => _,
+               "ExpressionAttributeValues" => %{":v_pk" => %{"S" => ^email}},
+               "KeyConditionExpression" => "#pk = :v_pk",
+               "ProjectionExpression" => _,
+               "TableName" => "posts_sort_key"
+             } = request_body
+
+      assert {:ok, results} = result
       assert length(results) == 2
       assert Enum.at(results, 0).inserted_at == post1.inserted_at
       assert Enum.at(results, 1).inserted_at == post2.inserted_at
@@ -159,8 +189,15 @@ defmodule AshDynamo.Test.SortTest do
       # Query without PK filter forces Scan mode, runtime sort applies
       query = Ash.Query.sort(PostSortKey, inserted_at: :desc)
 
-      {:ok, results} = Ash.read(query)
+      {result, request_body} = capture_dynamo_request(fn -> Ash.read(query) end)
 
+      assert %{
+               "ExpressionAttributeNames" => _,
+               "ProjectionExpression" => _,
+               "TableName" => "posts_sort_key"
+             } = request_body
+
+      assert {:ok, results} = result
       assert length(results) == 3
       assert Enum.at(results, 0).inserted_at == post3.inserted_at
       assert Enum.at(results, 1).inserted_at == post2.inserted_at
@@ -197,8 +234,15 @@ defmodule AshDynamo.Test.SortTest do
 
       query = Ash.Query.sort(PostSortKey, inserted_at: :asc)
 
-      {:ok, results} = Ash.read(query)
+      {result, request_body} = capture_dynamo_request(fn -> Ash.read(query) end)
 
+      assert %{
+               "ExpressionAttributeNames" => _,
+               "ProjectionExpression" => _,
+               "TableName" => "posts_sort_key"
+             } = request_body
+
+      assert {:ok, results} = result
       assert length(results) == 3
       assert Enum.at(results, 0).inserted_at == post1.inserted_at
       assert Enum.at(results, 1).inserted_at == post2.inserted_at
@@ -241,8 +285,17 @@ defmodule AshDynamo.Test.SortTest do
         |> Ash.Query.filter(email == ^email)
         |> Ash.Query.sort(status: :desc)
 
-      {:ok, results} = Ash.read(query)
+      {result, request_body} = capture_dynamo_request(fn -> Ash.read(query) end)
 
+      assert %{
+               "ExpressionAttributeNames" => _,
+               "ExpressionAttributeValues" => %{":v_pk" => %{"S" => ^email}},
+               "KeyConditionExpression" => "#pk = :v_pk",
+               "ProjectionExpression" => _,
+               "TableName" => "posts_sort_key"
+             } = request_body
+
+      assert {:ok, results} = result
       assert length(results) == 3
       assert Enum.at(results, 0).status == post3.status
       assert Enum.at(results, 1).status == post2.status
@@ -282,8 +335,17 @@ defmodule AshDynamo.Test.SortTest do
         |> Ash.Query.filter(email == ^email)
         |> Ash.Query.sort(status: :asc)
 
-      {:ok, results} = Ash.read(query)
+      {result, request_body} = capture_dynamo_request(fn -> Ash.read(query) end)
 
+      assert %{
+               "ExpressionAttributeNames" => _,
+               "ExpressionAttributeValues" => %{":v_pk" => %{"S" => ^email}},
+               "KeyConditionExpression" => "#pk = :v_pk",
+               "ProjectionExpression" => _,
+               "TableName" => "posts_sort_key"
+             } = request_body
+
+      assert {:ok, results} = result
       assert length(results) == 3
       assert Enum.at(results, 0).status == post1.status
       assert Enum.at(results, 1).status == post2.status
@@ -299,8 +361,15 @@ defmodule AshDynamo.Test.SortTest do
 
       query = Ash.Query.sort(Post, status: :desc)
 
-      {:ok, results} = Ash.read(query)
+      {result, request_body} = capture_dynamo_request(fn -> Ash.read(query) end)
 
+      assert %{
+               "ExpressionAttributeNames" => _,
+               "ProjectionExpression" => _,
+               "TableName" => "posts"
+             } = request_body
+
+      assert {:ok, results} = result
       assert length(results) == 3
       assert Enum.at(results, 0).status == post3.status
       assert Enum.at(results, 1).status == post2.status
@@ -345,8 +414,17 @@ defmodule AshDynamo.Test.SortTest do
         |> Ash.Query.filter(email == ^email)
         |> Ash.Query.sort(status: :desc, inserted_at: :asc)
 
-      {:ok, results} = Ash.read(query)
+      {result, request_body} = capture_dynamo_request(fn -> Ash.read(query) end)
 
+      assert %{
+               "ExpressionAttributeNames" => _,
+               "ExpressionAttributeValues" => %{":v_pk" => %{"S" => ^email}},
+               "KeyConditionExpression" => "#pk = :v_pk",
+               "ProjectionExpression" => _,
+               "TableName" => "posts_sort_key"
+             } = request_body
+
+      assert {:ok, results} = result
       assert length(results) == 3
       assert Enum.at(results, 0).inserted_at == post3.inserted_at
       assert Enum.at(results, 1).inserted_at == post1.inserted_at

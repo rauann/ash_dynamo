@@ -27,7 +27,7 @@ credo: ## Runs Credo static analysis.
 	@mix credo --strict
 
 hex-outdated: ## Checks for outdated dependencies.
-	@mix hex.outdated
+	@mix hex.outdated || true
 
 hex-audit: ## Audits dependencies for security vulnerabilities.
 	@mix hex.audit

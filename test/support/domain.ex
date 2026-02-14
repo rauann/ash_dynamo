@@ -6,5 +6,6 @@ defmodule AshDynamo.Test.Domain do
   resources do
     resource AshDynamo.Test.Post
     resource AshDynamo.Test.PostSortKey
+    resource AshDynamo.Test.PostGSI
   end
 end
