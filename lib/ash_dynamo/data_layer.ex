@@ -9,6 +9,8 @@ defmodule AshDynamo.DataLayer do
 
   @behaviour Ash.DataLayer
 
+  require Logger
+
   alias AshDynamo.DataLayer.Info
 
   @global_secondary_index %Spark.Dsl.Entity{
@@ -127,6 +129,8 @@ defmodule AshDynamo.DataLayer do
     select_fields = projection_fields(query, resource)
 
     {mode, opts, effective_sk} = request_opts(query, resource)
+
+    maybe_warn_on_scan(mode, resource)
 
     opts = merge_projection_opts(opts, select_fields)
     opts = merge_sort_opts(opts, query.sort, mode, effective_sk)
@@ -676,4 +680,19 @@ defmodule AshDynamo.DataLayer do
 
   defp maybe_put(opts, _key, nil), do: opts
   defp maybe_put(opts, key, value), do: Keyword.put(opts, key, value)
+
+  defp maybe_warn_on_scan(:scan, resource) do
+    if Application.get_env(:ash_dynamo, :warn_on_scan?) == true do
+      table = Info.table(resource)
+
+      Logger.warning("""
+      AshDynamo: Scan operation on table "#{table}" for resource #{inspect(resource)}. \
+      Scans read every item in the table and consume significant read capacity. \
+      Add a partition key filter or define a GSI to use a Query instead. \
+      To disable this warning set: "config :ash_dynamo, warn_on_scan?: false"\
+      """)
+    end
+  end
+
+  defp maybe_warn_on_scan(_mode, _resource), do: :ok
 end

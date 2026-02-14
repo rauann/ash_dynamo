@@ -1,5 +1,6 @@
 defmodule AshDynamo.Test.ReadTest do
   use ExUnit.Case
+  import ExUnit.CaptureLog
   import AshDynamo.Test.RequestHelper
   import AshDynamo.Test.Setup
 
@@ -32,5 +33,15 @@ defmodule AshDynamo.Test.ReadTest do
     assert resource.inserted_at == attrs.inserted_at
     assert resource.title == attrs.title
     assert resource.status == attrs.status
+  end
+
+  test "logs warning when scan operation is performed with warn_on_scan? enabled" do
+    Application.put_env(:ash_dynamo, :warn_on_scan?, true)
+    on_exit(fn -> Application.delete_env(:ash_dynamo, :warn_on_scan?) end)
+
+    log = capture_log(fn -> Ash.read(Post) end)
+
+    assert log =~ "Scan operation on table \"posts\""
+    assert log =~ "AshDynamo.Test.Post"
   end
 end
