@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](Https://conventionalcommits.org) for commit guidelines.
 
+## [v0.4.1](https://github.com/rauann/ash_dynamo/compare/v0.4.0...v0.4.1) (2026-02-14)
+
+### Documentation
+
+- Add `global_secondary_index` DSL reference to documentation
+- Add GSI example to getting started guide
+- Add `@type t` to `SecondaryIndex` to fix `mix docs` warnings
+- Remove misleading projection comment from `SecondaryIndex` moduledoc
+
+### Chores
+
+- Upgrade ash dependency
+
 ## [v0.4.0](https://github.com/rauann/ash_dynamo/compare/v0.3.0...v0.4.0) (2026-02-14)
 
 ### Features
