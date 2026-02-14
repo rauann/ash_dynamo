@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](Https://conventionalcommits.org) for commit guidelines.
 
+## [v0.4.0](https://github.com/rauann/ash_dynamo/compare/v0.3.0...v0.4.0) (2026-02-14)
+
+### Features
+
+- Add GSI DSL entity with `global_secondary_index` declaration in `dynamodb` section
+- Implement automatic GSI index selection for query routing (table PK > GSI PK > Scan)
+- Add opt-in scan operation warning via `config :ash_dynamo, warn_on_scan?: true`
+
+### Chores
+
+- Add telemetry-based request body capture helper for test assertions
+- Bump dependencies
+
 ## [v0.3.0](https://github.com/rauann/ash_dynamo/compare/v0.2.1...v0.3.0) (2026-01-15)
 
 ### Features

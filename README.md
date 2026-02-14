@@ -13,7 +13,7 @@ If [available in Hex](https://hex.pm/docs/publish), add `ash_dynamo` to `mix.exs
 ```elixir
 def deps do
   [
-    {:ash_dynamo, "~> 0.3.0"}
+    {:ash_dynamo, "~> 0.4.0"}
   ]
 end
 ```
@@ -25,6 +25,7 @@ end
 ## Topics
 
 - [Supported Ash Features](documentation/topics/ash-features.md)
+- [Scan Warning](documentation/topics/scan-warning.md)
 
 ## Development
 
