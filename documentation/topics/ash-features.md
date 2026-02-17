@@ -74,14 +74,16 @@ Used for all other cases:
 
 ## Not Implemented
 
-| Feature             | Notes                         |
-| ------------------- | ----------------------------- |
-| `:or`               | Via filter expression         |
-| `:upsert`           | Explicit upsert mode          |
-| `:aggregate`        | Via `Select: COUNT`           |
-| Bulk operations     | Bulk insert/update/delete     |
-| LSI index selection | Local Secondary Index support |
-| Transactions        | Via `TransactWriteItems`      |
+| Feature             | Notes                                                                                         |
+| ------------------- | --------------------------------------------------------------------------------------------- |
+| `:or`               | Via filter expression                                                                         |
+| `:upsert`           | Explicit upsert mode                                                                          |
+| `:aggregate`        | Via `Select: COUNT`                                                                           |
+| `begins_with`       | SK prefix matching — requires custom `Ash.Query.Function` (no built-in Ash equivalent)        |
+| `between`           | SK range via `BETWEEN` — expressible as `>= and <=` but only first SK predicate is key-pushed |
+| Bulk operations     | Bulk insert/update/delete                                                                     |
+| LSI index selection | Local Secondary Index support                                                                 |
+| Transactions        | Via `TransactWriteItems`                                                                      |
 
 ## Not Supported
 
