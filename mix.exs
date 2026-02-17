@@ -3,7 +3,7 @@ defmodule AshDynamo.MixProject do
 
   @version "0.4.1"
 
-  @moduledoc "DynamoDB data layer for Ash resources."
+  @moduledoc "DynamoDB data layer for `Ash` resources."
 
   def project do
     [
@@ -33,6 +33,7 @@ defmodule AshDynamo.MixProject do
         "CHANGELOG.md",
         "documentation/tutorials/getting-started-with-ash-dynamo.md",
         "documentation/topics/ash-features.md",
+        "documentation/topics/runtime-filtering.md",
         "documentation/topics/scan-warning.md",
         "documentation/development/testing.md",
         "documentation/dsls/DSL-AshDynamo.DataLayer.md"
