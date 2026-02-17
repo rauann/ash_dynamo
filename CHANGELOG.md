@@ -3,6 +3,26 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](Https://conventionalcommits.org) for commit guidelines.
 
+## [v0.5.0](https://github.com/rauann/ash_dynamo/compare/v0.4.1...v0.5.0) (2026-02-17)
+
+### Features
+
+- Implement `:limit` capability with DynamoDB `Limit` parameter support
+- **Breaking change:** Queries and scans without a limit now paginates beyond the 1MB boundary instead of silently returning partial results.
+  For queries this is expected behavior since results are scoped to a single partition key. For scans, this may increase read capacity consumption significantly on large tables.
+  Use `Ash.Query.limit/2` to control result size, and consider enabling `config :ash_dynamo, warn_on_scan?: true` to log warnings when a full table scan is performed.
+
+### Documentation
+
+- Add "Runtime Filtering and Pagination" topic explaining the layered filtering strategy and limit + runtime filter edge case
+- Move `:offset` to "Not Supported" (DynamoDB has no native offset mechanism)
+- Add `begins_with` and `between` to "Not Implemented" with notes on feasibility
+
+### Chores
+
+- Add `capture_all_dynamo_requests` test helper for asserting multi-page pagination requests
+- Add complex query integration tests (KeyCondition + FilterExpression + Sort + Limit combinations)
+
 ## [v0.4.1](https://github.com/rauann/ash_dynamo/compare/v0.4.0...v0.4.1) (2026-02-14)
 
 ### Documentation
