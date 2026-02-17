@@ -1,6 +1,6 @@
 defmodule AshDynamo.DataLayer do
   @moduledoc """
-  DynamoDB data layer scaffold for Ash.
+  DynamoDB data layer for `Ash`.
 
   This wires in a `dynamodb` DSL section on resources so you can declare how a
   resource maps to a table. Introspection helpers live in
@@ -12,6 +12,7 @@ defmodule AshDynamo.DataLayer do
   require Logger
 
   alias AshDynamo.DataLayer.Info
+  alias AshDynamo.DataLayer.Query.Paginator
 
   @global_secondary_index %Spark.Dsl.Entity{
     name: :global_secondary_index,
@@ -82,7 +83,8 @@ defmodule AshDynamo.DataLayer do
       :domain,
       :select,
       :filter,
-      :sort
+      :sort,
+      :limit
     ]
   end
 
@@ -99,6 +101,7 @@ defmodule AshDynamo.DataLayer do
   def can?(_, :boolean_filter), do: true
   def can?(_, :sort), do: true
   def can?(_, {:sort, _}), do: true
+  def can?(_, :limit), do: true
   def can?(_, _), do: false
 
   # --- Query shaping ------------------------------------------------------
@@ -122,6 +125,10 @@ defmodule AshDynamo.DataLayer do
   def sort(query, nil, _resource), do: {:ok, query}
   def sort(query, sort, _resource), do: {:ok, %{query | sort: sort}}
 
+  @impl true
+  def limit(query, nil, _resource), do: {:ok, query}
+  def limit(query, limit, _resource), do: {:ok, %{query | limit: limit}}
+
   # --- Execution ----------------------------------------------------------
   @impl true
   def run_query(%Query{} = query, resource) do
@@ -132,18 +139,12 @@ defmodule AshDynamo.DataLayer do
 
     maybe_warn_on_scan(mode, resource)
 
-    opts = merge_projection_opts(opts, select_fields)
-    opts = merge_sort_opts(opts, query.sort, mode, effective_sk)
+    opts =
+      opts
+      |> merge_projection_opts(select_fields)
+      |> merge_sort_opts(query.sort, mode, effective_sk)
 
-    result =
-      mode
-      |> case do
-        :query -> ExAws.Dynamo.query(table, opts)
-        :scan -> ExAws.Dynamo.scan(table, opts)
-      end
-      |> ExAws.request()
-
-    with {:ok, resp} <- result,
+    with {:ok, resp} <- Paginator.fetch(table, mode, opts, query.limit),
          {:ok, items} <- decode_items(resp, resource),
          {:ok, filtered} <- apply_runtime_filter(items, query) do
       apply_runtime_sort(filtered, query, mode, effective_sk)

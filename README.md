@@ -25,6 +25,7 @@ end
 ## Topics
 
 - [Supported Ash Features](documentation/topics/ash-features.md)
+- [Runtime Filtering and Pagination](documentation/topics/runtime-filtering.md)
 - [Scan Warning](documentation/topics/scan-warning.md)
 
 ## Development

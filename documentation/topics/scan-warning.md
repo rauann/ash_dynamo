@@ -29,7 +29,7 @@ config :ash_dynamo, warn_on_scan?: true
 
 When enabled, AshDynamo logs a warning whenever a Scan is used:
 
-```
+```shell
 [warning] AshDynamo: Scan operation on table "posts" for resource AshDynamo.Test.Post. Scans read every item in the table and consume significant read capacity. Add a partition key filter or define a GSI to use a Query instead. To disable this warning set: "config :ash_dynamo, warn_on_scan?: false"
 ```
 

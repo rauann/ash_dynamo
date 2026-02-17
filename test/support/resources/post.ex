@@ -15,7 +15,7 @@ defmodule AshDynamo.Test.Post do
 
     create :create do
       primary? true
-      accept [:email, :status, :inserted_at, :title]
+      accept [:email, :body, :status, :inserted_at, :title]
     end
 
     update :update do
@@ -25,6 +25,7 @@ defmodule AshDynamo.Test.Post do
 
   attributes do
     attribute :email, :string, allow_nil?: false, primary_key?: true
+    attribute :body, :string
     attribute :status, :string, allow_nil?: false
     attribute :title, :string
 
@@ -54,7 +55,7 @@ defmodule AshDynamo.Test.PostSortKey do
 
     create :create do
       primary? true
-      accept [:email, :likes, :status, :inserted_at, :title]
+      accept [:email, :body, :likes, :status, :inserted_at, :title]
     end
 
     update :update do
@@ -64,6 +65,7 @@ defmodule AshDynamo.Test.PostSortKey do
 
   attributes do
     attribute :email, :string, allow_nil?: false, primary_key?: true
+    attribute :body, :string
     attribute :likes, :integer
     attribute :status, :string, allow_nil?: false
     attribute :title, :string

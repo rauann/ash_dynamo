@@ -2,7 +2,7 @@
 
 This document describes which Ash features are supported by AshDynamo and how they map to DynamoDB operations.
 
-## Base Operations
+## Operations
 
 | Capability | Status | Notes                                                                    |
 | ---------- | ------ | ------------------------------------------------------------------------ |
@@ -13,6 +13,7 @@ This document describes which Ash features are supported by AshDynamo and how th
 | `:select`  | ✅     | ProjectionExpression                                                     |
 | `:filter`  | ✅     | KeyCondition + FilterExpression + GSI index selection + Runtime fallback |
 | `:sort`    | ✅     | ScanIndexForward (SK) + Runtime fallback                                 |
+| `:limit`   | ✅     | DynamoDB `Limit` + `LastEvaluatedKey`/`ExclusiveStartKey` pagination     |
 
 ## Filter Operators
 
@@ -73,22 +74,18 @@ Used for all other cases:
 
 ## Not Implemented
 
-| Feature              | Notes                                                 |
-| -------------------- | ----------------------------------------------------- |
-| `:or`                | Via filter expression                                 |
-| `:upsert`            | Explicit upsert mode                                  |
-| `:limit` / `:offset` | Pagination via `LastEvaluatedKey`/`ExclusiveStartKey` |
-| `:aggregate`         | Via `Select: COUNT`                                   |
-| Bulk operations      | Bulk insert/update/delete                             |
-| LSI index selection  | Local Secondary Index support                         |
-| Transactions         | Via `TransactWriteItems`                              |
-
-> #### Warning {: .warning}
->
-> Since pagination is not implemented, queries on large datasets will return only the first 1MB of results (DynamoDB's per-request limit).
+| Feature             | Notes                         |
+| ------------------- | ----------------------------- |
+| `:or`               | Via filter expression         |
+| `:upsert`           | Explicit upsert mode          |
+| `:aggregate`        | Via `Select: COUNT`           |
+| Bulk operations     | Bulk insert/update/delete     |
+| LSI index selection | Local Secondary Index support |
+| Transactions        | Via `TransactWriteItems`      |
 
 ## Not Supported
 
-| Feature       | Notes                        |
-| ------------- | ---------------------------- |
-| Relationships | DynamoDB has no native joins |
+| Feature       | Notes                                   |
+| ------------- | --------------------------------------- |
+| `:offset`     | DynamoDB has no native offset mechanism |
+| Relationships | DynamoDB has no native joins            |
