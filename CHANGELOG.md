@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](Https://conventionalcommits.org) for commit guidelines.
 
+## [v0.5.1](https://github.com/rauann/ash_dynamo/compare/v0.5.0...v0.5.1) (2026-02-20)
+
+### Bug Fixe
+
+- Skip DynamoDB `Limit` when `FilterExpression` is present to avoid excessive pagination
+
 ## [v0.5.0](https://github.com/rauann/ash_dynamo/compare/v0.4.1...v0.5.0) (2026-02-17)
 
 ### Features
