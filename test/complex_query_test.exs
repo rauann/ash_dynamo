@@ -42,9 +42,11 @@ defmodule AshDynamo.Test.ComplexQueryTest do
                },
                "FilterExpression" => "#fa0 = :fv0",
                "KeyConditionExpression" => "#pk = :v_pk AND #sk >= :v_sk",
-               "Limit" => 2,
                "TableName" => "posts_sort_key"
              } = request_body
+
+      # Limit is not passed to DynamoDB when FilterExpression is present
+      refute Map.has_key?(request_body, "Limit")
 
       assert {:ok, records} = result
       assert length(records) == 2
@@ -79,10 +81,12 @@ defmodule AshDynamo.Test.ComplexQueryTest do
                },
                "FilterExpression" => "#fa0 <> :fv0",
                "KeyConditionExpression" => "#pk = :v_pk",
-               "Limit" => 2,
                "ScanIndexForward" => false,
                "TableName" => "posts_sort_key"
              } = request_body
+
+      # Limit is not passed to DynamoDB when FilterExpression is present
+      refute Map.has_key?(request_body, "Limit")
 
       assert {:ok, [first, second]} = result
       assert first.inserted_at == "2024-01-04T00:00:00Z"

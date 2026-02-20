@@ -6,6 +6,15 @@ defmodule AshDynamo.DataLayer.Query.Paginator do
   the response includes a `LastEvaluatedKey` that must be passed as `ExclusiveStartKey`
   in the next request. This module encapsulates that loop, accumulating pages until
   the requested limit is reached or no more data is available.
+
+  When a `FilterExpression` is present, `Limit` is not passed to DynamoDB. This is
+  because DynamoDB applies `Limit` before `FilterExpression`, so a small limit would
+  constrain the evaluation window and cause excessive pagination when few items match
+  the filter. Instead, DynamoDB evaluates its natural 1MB page and the Paginator
+  controls the stopping logic based on accumulated post-filter item count.
+
+  When no `FilterExpression` is present, every evaluated item is returned, so `Limit`
+  is passed directly to DynamoDB to avoid over-reading.
   """
 
   @doc """
@@ -22,16 +31,12 @@ defmodule AshDynamo.DataLayer.Query.Paginator do
   # for subsequent ones. Each page's items list is prepended as a whole (O(1)),
   # then reversed and concatenated in `to_response`.
   defp do_fetch(table, mode, base_opts, limit, acc, start_key) do
-    # We always delegate limiting to DynamoDB by passing the remaining count
-    # as the Limit parameter. On the first request this equals the original limit.
-    # On subsequent requests it is reduced by the number of items already accumulated.
-    # This avoids over-fetching when the 1MB page boundary causes DynamoDB to return
-    # fewer items than requested, requiring additional pages.
-    remaining = remaining_limit(limit, acc)
+    dynamo_limit =
+      if has_filter_expression?(base_opts), do: nil, else: remaining_limit(limit, acc)
 
     page_opts =
       base_opts
-      |> maybe_put(:limit, remaining)
+      |> maybe_put(:limit, dynamo_limit)
       |> maybe_put(:exclusive_start_key, start_key)
 
     result =
@@ -47,13 +52,13 @@ defmodule AshDynamo.DataLayer.Query.Paginator do
 
       cond do
         limit != nil and item_count(merged) >= limit ->
-          {:ok, to_response(merged)}
+          {:ok, to_response(merged, limit)}
 
         Map.has_key?(resp, "LastEvaluatedKey") ->
           do_fetch(table, mode, base_opts, limit, merged, resp["LastEvaluatedKey"])
 
         true ->
-          {:ok, to_response(merged)}
+          {:ok, to_response(merged, limit)}
       end
     end
   end
@@ -79,12 +84,22 @@ defmodule AshDynamo.DataLayer.Query.Paginator do
 
   # Pages are prepended during accumulation (O(1) per page), so we
   # reverse the page order and concatenate into a flat item list.
-  defp to_response({pages, count, scanned}) do
+  #
+  # When a limit is provided, trim the items to avoid returning more
+  # than requested (the last page may overshoot the limit).
+  defp to_response({pages, count, scanned}, limit) do
     items = pages |> Enum.reverse() |> Enum.concat()
-    %{"Items" => items, "Count" => count, "ScannedCount" => scanned}
+
+    if limit != nil and length(items) > limit do
+      %{"Items" => Enum.take(items, limit), "Count" => limit, "ScannedCount" => scanned}
+    else
+      %{"Items" => items, "Count" => count, "ScannedCount" => scanned}
+    end
   end
 
   defp item_count({_pages, count, _scanned}), do: count
+
+  defp has_filter_expression?(opts), do: Keyword.has_key?(opts, :filter_expression)
 
   defp maybe_put(opts, _key, nil), do: opts
   defp maybe_put(opts, key, value), do: Keyword.put(opts, key, value)
