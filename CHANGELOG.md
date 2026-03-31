@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](Https://conventionalcommits.org) for commit guidelines.
 
+## [v0.6.0](https://github.com/rauann/ash_dynamo/compare/v0.5.1...v0.6.0) (2026-03-31)
+
+### Added
+
+- `AshDynamo.EmbeddedType` — macro for using embedded Ash resources as attributes in DynamoDB-backed resources. Handles DynamoDB string-keyed map ↔ Ash struct conversion and auto-implements `ExAws.Dynamo.Encodable`.
+
 ## [v0.5.1](https://github.com/rauann/ash_dynamo/compare/v0.5.0...v0.5.1) (2026-02-20)
 
 ### Bug Fixe

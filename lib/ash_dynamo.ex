@@ -1,5 +1,5 @@
 defmodule AshDynamo do
   @moduledoc """
-  DynamoDB data layer for `Ash` resources.
+  DynamoDB data layer for Ash resources.
   """
 end
