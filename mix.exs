@@ -1,7 +1,7 @@
 defmodule AshDynamo.MixProject do
   use Mix.Project
 
-  @version "0.6.0"
+  @version "0.6.1"
 
   @moduledoc "DynamoDB data layer for `Ash` resources."
 
@@ -91,8 +91,9 @@ defmodule AshDynamo.MixProject do
   defp test_coverage do
     [
       ignore_modules: [
-        AshDynamo.DataLayer.Dynamodb.Options,
         AshDynamo.DataLayer.Dynamodb.GlobalSecondaryIndex,
+        AshDynamo.DataLayer.Dynamodb.Options,
+        AshDynamo.EmbeddedType,
         ~r/Inspect/,
         ~r/\.Test\./
       ],

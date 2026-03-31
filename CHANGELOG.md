@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](Https://conventionalcommits.org) for commit guidelines.
 
+## [v0.6.1](https://github.com/rauann/ash_dynamo/compare/v0.6.1...v0.6.1) (2026-03-31)
+
+### Added
+
+- `AshDynamo.EmbeddedType` validates field values through Ash type casting on both writes (`cast_input`) and reads (`cast_stored`).
+
 ## [v0.6.0](https://github.com/rauann/ash_dynamo/compare/v0.5.1...v0.6.0) (2026-03-31)
 
 ### Added
