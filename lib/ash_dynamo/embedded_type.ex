@@ -56,6 +56,13 @@ defmodule AshDynamo.EmbeddedType do
   3. Dumping the struct back to a plain map for DynamoDB storage (`dump_to_native/2`)
   4. Returning `cast_in_query?: false` to prevent Ash from loading through the type
 
+  ## Type Validation
+
+  Both `cast_input/2` and `cast_stored/2` validate each field through their respective
+  `Ash.Type` casting functions. If any field fails validation, the entire cast returns
+  `:error`. This ensures invalid data is caught on both writes and reads — a corrupted
+  DynamoDB record will raise an error immediately rather than propagating bad data.
+
   ## ExAws.Dynamo.Encodable
 
   The macro automatically implements the `ExAws.Dynamo.Encodable` protocol for the
@@ -77,7 +84,8 @@ defmodule AshDynamo.EmbeddedType do
       alias unquote(resource), as: Resource
 
       @resource unquote(resource)
-      @fields @resource |> Ash.Resource.Info.attributes() |> Enum.map(& &1.name)
+      @attributes Ash.Resource.Info.attributes(@resource)
+      @fields Enum.map(@attributes, & &1.name)
 
       @impl Ash.Type
       def storage_type(_constraints), do: :map
@@ -87,12 +95,7 @@ defmodule AshDynamo.EmbeddedType do
       def cast_input(%Resource{} = value, _constraints), do: {:ok, value}
 
       def cast_input(%{} = map, _constraints) do
-        attrs =
-          Map.new(@fields, fn field ->
-            {field, map[field] || map[to_string(field)]}
-          end)
-
-        {:ok, struct!(Resource, attrs)}
+        cast_fields(map, &Ash.Type.cast_input/3)
       end
 
       def cast_input(_value, _constraints), do: :error
@@ -102,12 +105,7 @@ defmodule AshDynamo.EmbeddedType do
       def cast_stored(%Resource{} = value, _constraints), do: {:ok, value}
 
       def cast_stored(%{} = map, _constraints) do
-        attrs =
-          Map.new(@fields, fn field ->
-            {field, map[field] || map[to_string(field)]}
-          end)
-
-        {:ok, struct!(Resource, attrs)}
+        cast_fields(map, &Ash.Type.cast_stored/3)
       end
 
       def cast_stored(_value, _constraints), do: :error
@@ -124,6 +122,27 @@ defmodule AshDynamo.EmbeddedType do
 
       @impl Ash.Type
       def cast_in_query?(_constraints), do: false
+
+      defp cast_fields(map, cast_fn) do
+        @attributes
+        |> Enum.reduce_while(%{}, fn attr, acc ->
+          raw =
+            case Map.fetch(map, attr.name) do
+              {:ok, value} -> value
+              :error -> map[to_string(attr.name)]
+            end
+
+          case cast_fn.(attr.type, raw, attr.constraints) do
+            {:ok, value} -> {:cont, Map.put(acc, attr.name, value)}
+            :error -> {:halt, :error}
+            {:error, _reason} -> {:halt, :error}
+          end
+        end)
+        |> case do
+          :error -> :error
+          attrs -> {:ok, struct!(Resource, attrs)}
+        end
+      end
 
       unless Enumerable.impl_for(struct!(Resource, %{})) do
         defimpl ExAws.Dynamo.Encodable, for: Resource do
